@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>הבית של הזוגות הצעירים - סייר תכנים</title>
     
+    <!-- תמונה לכרטיסיה בדפדפן (Favicon) -->
+    <link rel="icon" type="image/jpeg" href="favicon.jpg">
+    
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -49,29 +52,53 @@
         body {
             background-color: #fdfbf7;
             color: #333;
+            transition: font-size 0.3s ease;
         }
         /* Custom scrollbar for better look */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1; 
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #b6843c; 
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #842a47; 
-        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #b6843c; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #842a47; }
+        
         /* Animations */
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        .animate-fade-in {
-            animation: fadeIn 0.4s ease-out forwards;
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
         }
+        .animate-slide-up { animation: slideUp 0.3s ease-out forwards; }
+
+        /* Marquee Animation */
+        .marquee-wrapper {
+            display: flex;
+            overflow: hidden;
+            user-select: none;
+            gap: 1.5rem;
+            -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+            mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+        }
+        .marquee-content {
+            flex-shrink: 0;
+            display: flex;
+            justify-content: space-around;
+            gap: 1.5rem;
+            min-width: 100%;
+            animation: scroll-rtl 40s linear infinite;
+        }
+        .marquee-wrapper:hover .marquee-content { animation-play-state: paused; }
+        @keyframes scroll-rtl {
+            from { transform: translateX(0); }
+            to { transform: translateX(100%); } /* מותאם ל-RTL */
+        }
+
+        /* Accessibility Classes */
+        .a11y-readable-font * { font-family: Arial, Helvetica, sans-serif !important; letter-spacing: 0.5px !important; }
+        .a11y-highlight-links a, .a11y-highlight-links button { text-decoration: underline !important; font-weight: 800 !important; }
     </style>
 </head>
 <body>
@@ -79,47 +106,36 @@
 
     <script type="text/babel">
         // ----------------------------------------------------
-        // Icons setup (using Lucide React icons via script tag)
+        // Icons setup (using Lucide React icons)
         // ----------------------------------------------------
         const { 
             Home, Folder, FolderOpen, FileText, FileAudio, FileVideo, 
             Search, ChevronLeft, Menu, X, Calendar, BookOpen, Info,
             PlayCircle, ExternalLink, Clock, ShieldCheck, HeartHandshake,
-            Maximize
+            Maximize, Headphones, ArrowUp, Accessibility, ZoomIn, ZoomOut,
+            Underline, Type, RefreshCw, Quote, Volume2
         } = lucide;
 
-        // Helper to render Lucide icons in React without a bundler
         const Icon = ({ name, size = 24, className = "" }) => {
             const spanRef = React.useRef(null);
-
             React.useEffect(() => {
                 if (spanRef.current && window.lucide && window.lucide.icons[name]) {
-                    // יוצרים אלמנט i זמני
                     const iElement = document.createElement('i');
                     iElement.setAttribute('data-lucide', name);
                     if (className) iElement.setAttribute('class', className);
                     iElement.setAttribute('width', size);
                     iElement.setAttribute('height', size);
-
-                    // מאפסים את התוכן ומכניסים את האלמנט פנימה
                     spanRef.current.innerHTML = '';
                     spanRef.current.appendChild(iElement);
-
-                    // מבקשים מספריית האייקונים להמיר את אלמנט ה-i ל-svg האמיתי
-                    window.lucide.createIcons({
-                        icons: { [name]: window.lucide.icons[name] },
-                        root: spanRef.current
-                    });
+                    window.lucide.createIcons({ icons: { [name]: window.lucide.icons[name] }, root: spanRef.current });
                 }
             }, [name, size, className]);
-
             return <span ref={spanRef} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }} />;
         };
 
         // ----------------------------------------------------
-        // Constants & Data Fetching Logic (Google Sheets)
+        // Google Sheets Data Logic
         // ----------------------------------------------------
-        
         const CSV_URLS = {
             DRIVE: "https://docs.google.com/spreadsheets/d/e/2PACX-1vT6OmRPxlNhfecg0vfv-jgnWAgHk9C2NcsLwutzb64KGnisPymHTR02K6LXJBU3fuz15nq9dQTdq3uE/pub?gid=0&single=true&output=csv",
             ARTICLES: "https://docs.google.com/spreadsheets/d/e/2PACX-1vT6OmRPxlNhfecg0vfv-jgnWAgHk9C2NcsLwutzb64KGnisPymHTR02K6LXJBU3fuz15nq9dQTdq3uE/pub?gid=1100608744&single=true&output=csv",
@@ -142,15 +158,9 @@
                             const mapped = results.data.map(mapRowFn).filter(Boolean);
                             setData(mapped);
                             setLoading(false);
-                        } catch (err) {
-                            setError(err.message);
-                            setLoading(false);
-                        }
+                        } catch (err) { setError(err.message); setLoading(false); }
                     },
-                    error: (err) => {
-                        setError(err.message);
-                        setLoading(false);
-                    }
+                    error: (err) => { setError(err.message); setLoading(false); }
                 });
             }, [url]);
 
@@ -228,6 +238,49 @@
             </div>
         );
 
+        // --- Marquee Component ---
+        const TestimonialsMarquee = () => {
+            const feedbacks = [
+                { text: "סוף סוף יש מישהו שמדבר על הדברים האלו... ומדבר על הכל פתוח! תודה רבה ושבת שלום!!!", author: "זוג מהמרכז" },
+                { text: "בתחילה עשינו הוראת קבע ל-30 שח ואמרנו נראה מה שווה.. אני חייב לציין שעזרת לנו מאוד והתכנים מדויקים לנו!", author: "א. כהן" },
+                { text: "תודה על הכל, למרות שאנחנו כמעט ולא מצליחים לעלות לזומים, הידיעה שיש בית מאחורינו תומכת ומחזקת מאוד!", author: "משפחת ל." },
+                { text: "רציתי להודות על התוכן המדויק. אנחנו מרגישים שהתוכנית תורמת לנו המון לזוגיות. מעריכים מאוד!!", author: "ד.א." },
+                { text: "לא פעם ראשונה שאני קוראת ושומעת רעיונות על זוגיות. פה זה משהו אחר הרמה, הניתוח, האבחנות.. העניין מדהים!", author: "משתתפת בתוכנית" },
+                { text: "דבר ראשון חייבת להגיד שאני מתפעמת! המון המון תודה על התוכנית המופלאה הזו.", author: "ר.ב." }
+            ];
+
+            return (
+                <div className="mt-16 bg-white rounded-3xl p-8 border border-brand-secondary/20 shadow-sm overflow-hidden relative">
+                    <div className="text-center mb-8">
+                        <h3 className="text-2xl font-extrabold text-brand-primary flex items-center justify-center gap-3">
+                            <Icon name="HeartHandshake" className="text-brand-secondary" size={32} /> מה אומרים הזוגות בבית?
+                        </h3>
+                    </div>
+                    <div className="marquee-wrapper">
+                        <div className="marquee-content">
+                            {feedbacks.map((item, i) => (
+                                <div key={i} className="bg-brand-light p-6 rounded-2xl border-t-4 border-brand-secondary shadow-sm relative w-80 flex-shrink-0 flex flex-col">
+                                    <Icon name="Quote" className="text-brand-primary/10 absolute top-4 right-4" size={32} />
+                                    <p className="text-gray-700 text-sm italic relative z-10 mb-6 font-medium leading-relaxed mt-4">"{item.text}"</p>
+                                    <span className="text-xs font-extrabold text-brand-primary block mt-auto">- {item.author}</span>
+                                </div>
+                            ))}
+                        </div>
+                        {/* Duplicate for infinite effect */}
+                        <div className="marquee-content" aria-hidden="true">
+                            {feedbacks.map((item, i) => (
+                                <div key={`dup-${i}`} className="bg-brand-light p-6 rounded-2xl border-t-4 border-brand-secondary shadow-sm relative w-80 flex-shrink-0 flex flex-col">
+                                    <Icon name="Quote" className="text-brand-primary/10 absolute top-4 right-4" size={32} />
+                                    <p className="text-gray-700 text-sm italic relative z-10 mb-6 font-medium leading-relaxed mt-4">"{item.text}"</p>
+                                    <span className="text-xs font-extrabold text-brand-primary block mt-auto">- {item.author}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         // 1. Home Page
         const HomePage = ({ setPage }) => (
             <div className="animate-fade-in space-y-12">
@@ -278,6 +331,8 @@
                         <p className="text-gray-600">כל המידע שאין להשיג בשום מקום: לצפייה, להאזנה ולקריאה מהירה, הכל בסייר שלנו.</p>
                     </div>
                 </div>
+
+                <TestimonialsMarquee />
             </div>
         );
 
@@ -285,7 +340,7 @@
         const ExplorerPage = () => {
             const [currentPath, setCurrentPath] = React.useState("");
             const [searchQuery, setSearchQuery] = React.useState("");
-            const [selectedFile, setSelectedFile] = React.useState(null); // State for the file modal viewer
+            const [selectedFile, setSelectedFile] = React.useState(null); 
             
             const { data, loading, error } = useCSVData(CSV_URLS.DRIVE, mapDriveRow);
 
@@ -334,6 +389,10 @@
                 setSearchQuery("");
             };
 
+            const handleFileClick = (item) => {
+                setSelectedFile(item);
+            };
+
             const breadcrumbs = currentPath.split('/').filter(p => p !== '');
 
             const getFileIcon = (type, inModal = false) => {
@@ -350,23 +409,21 @@
                 }
             };
 
-            // חילוץ מזהה הקובץ מהקישור כדי להציג ב-Iframe מוטמע
             const getEmbedUrl = (url) => {
                 const driveIdMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/id=([a-zA-Z0-9_-]+)/);
                 if (driveIdMatch && driveIdMatch[1]) {
                     return `https://drive.google.com/file/d/${driveIdMatch[1]}/preview`;
                 }
-                return url; // חזרה לקישור הרגיל במקרה של בעיה בחילוץ
+                return url; 
             };
 
             return (
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden min-h-[600px] flex flex-col relative">
                     
-                    {/* File Viewer Modal */}
+                    {/* Modal for Video/PDF */}
                     {selectedFile && (
                         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 md:p-8 animate-fade-in">
                             <div className="bg-white w-full max-w-5xl h-full md:h-[90vh] rounded-2xl overflow-hidden flex flex-col shadow-2xl border border-brand-primary/20">
-                                {/* Modal Header */}
                                 <div className="bg-brand-primary text-white p-4 flex justify-between items-center shadow-md z-10">
                                     <div className="flex items-center gap-3">
                                         {getFileIcon(selectedFile.type, true)}
@@ -391,8 +448,6 @@
                                         </button>
                                     </div>
                                 </div>
-                                
-                                {/* Modal Body (Iframe embed) */}
                                 <div className="flex-1 bg-gray-100 relative w-full h-full">
                                     <iframe 
                                         src={getEmbedUrl(selectedFile.url)} 
@@ -405,7 +460,6 @@
                         </div>
                     )}
 
-                    {/* Explorer Header */}
                     <div className="bg-gray-50 p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4">
                         <div className="flex items-center gap-2 text-gray-600 font-medium overflow-x-auto w-full sm:w-auto whitespace-nowrap">
                             <button onClick={() => handleNavigate("")} className="hover:text-brand-primary p-1">
@@ -441,7 +495,6 @@
                         </div>
                     </div>
 
-                    {/* Explorer Body */}
                     <div className="p-4 flex-1 overflow-y-auto">
                         {loading ? <Loader /> : error ? <ErrorMsg msg={error} /> : contents.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-full text-gray-400 py-12">
@@ -463,12 +516,12 @@
                                     ) : (
                                         <div 
                                             key={item.id}
-                                            onClick={() => setSelectedFile(item)}
+                                            onClick={() => handleFileClick(item)}
                                             className="group flex flex-col items-start p-4 bg-white rounded-xl border border-gray-200 hover:border-brand-primary hover:shadow-md transition-all cursor-pointer relative"
                                         >
                                             <div className="flex w-full items-start justify-between mb-3">
                                                 {getFileIcon(item.type)}
-                                                <Icon name="Maximize" size={16} className="text-gray-300 group-hover:text-brand-primary transition-colors" />
+                                                <Icon name={item.type === 'audio' ? "Headphones" : "Maximize"} size={16} className="text-gray-300 group-hover:text-brand-primary transition-colors" />
                                             </div>
                                             <span className="text-gray-800 font-medium text-sm leading-tight mb-2 flex-1" dir="rtl">{item.name}</span>
                                             {item.date && (
@@ -595,6 +648,51 @@
         const App = () => {
             const [currentPage, setCurrentPage] = React.useState('home');
             const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+            const [showBackToTop, setShowBackToTop] = React.useState(false);
+
+            // A11y State
+            const [showA11y, setShowA11y] = React.useState(false);
+
+            // Handle URL Routing
+            React.useEffect(() => {
+                const handleHashChange = () => {
+                    const hash = window.location.hash.replace('#', '') || 'home';
+                    const validPages = ['home', 'explorer', 'schedule', 'articles', 'about'];
+                    if (validPages.includes(hash)) {
+                        setCurrentPage(hash);
+                    }
+                };
+                
+                handleHashChange(); // Init on load
+                window.addEventListener('hashchange', handleHashChange);
+                return () => window.removeEventListener('hashchange', handleHashChange);
+            }, []);
+
+            const navigate = (pageId) => {
+                window.location.hash = pageId;
+                setIsMobileMenuOpen(false);
+            };
+
+            // Scroll Listener for Back to Top
+            React.useEffect(() => {
+                const handleScroll = () => setShowBackToTop(window.scrollY > 300);
+                window.addEventListener('scroll', handleScroll);
+                return () => window.removeEventListener('scroll', handleScroll);
+            }, []);
+
+            // A11y Methods
+            const toggleA11yMenu = () => setShowA11y(!showA11y);
+            const changeFontSize = (step) => {
+                const currentSize = parseFloat(getComputedStyle(document.body).fontSize);
+                document.body.style.fontSize = `${currentSize + step}px`;
+            };
+            const toggleReadableFont = () => document.body.classList.toggle('a11y-readable-font');
+            const toggleHighlightLinks = () => document.body.classList.toggle('a11y-highlight-links');
+            const resetA11y = () => {
+                document.body.style.fontSize = '';
+                document.body.classList.remove('a11y-readable-font', 'a11y-highlight-links');
+                setShowA11y(false);
+            };
 
             const navItems = [
                 { id: 'home', label: 'ראשי', icon: 'Home' },
@@ -606,83 +704,76 @@
 
             const renderPage = () => {
                 switch(currentPage) {
-                    case 'home': return <HomePage setPage={setCurrentPage} />;
+                    case 'home': return <HomePage setPage={navigate} />;
                     case 'explorer': return <ExplorerPage />;
                     case 'schedule': return <SchedulePage />;
                     case 'articles': return <ArticlesPage />;
                     case 'about': return <AboutPage />;
-                    default: return <HomePage setPage={setCurrentPage} />;
+                    default: return <HomePage setPage={navigate} />;
                 }
             };
 
             return (
-                <div className="min-h-screen flex flex-col font-sans">
+                <div className="min-h-screen flex flex-col font-sans relative pb-20 sm:pb-0">
+                    
                     {/* Header / Navbar */}
                     <header className="bg-white shadow-sm sticky top-0 z-50">
                         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                             <div className="flex justify-between items-center h-20">
                                 
-                                {/* Logo Area */}
-                                <div 
-                                    className="flex items-center gap-2 cursor-pointer" 
-                                    onClick={() => setCurrentPage('home')}
-                                >
+                                <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('home')}>
                                     <div className="flex items-center font-black text-4xl tracking-tighter">
-                                        <div className="flex flex-col gap-1 ml-1 pt-1">
+                                        <span className="text-brand-secondary">ה</span>
+                                        <span className="text-brand-primary">בי</span>
+                                        <span className="text-brand-primary">ת</span>
+                                        <div className="flex flex-col gap-1 mr-1 pt-1">
                                             {[1,2,3,4,5].map(i => (
                                                 <span key={i} className="w-1.5 h-1.5 rounded-full bg-brand-secondary"></span>
                                             ))}
                                         </div>
-                                        <span className="text-brand-secondary">ה</span>
-                                        <span className="text-brand-primary">בי</span>
-                                        <span className="text-brand-primary relative">
-                                            ת
-                                            <span className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-brand-primary rounded-full"></span>
-                                        </span>
                                     </div>
                                 </div>
 
-                                {/* Desktop Navigation */}
-                                <nav className="hidden md:flex gap-1">
-                                    {navItems.map(item => (
-                                        <button
-                                            key={item.id}
-                                            onClick={() => setCurrentPage(item.id)}
-                                            className={`px-4 py-2 rounded-full flex items-center gap-2 font-medium transition-all
-                                                ${currentPage === item.id 
-                                                    ? 'bg-brand-primary/10 text-brand-primary' 
-                                                    : 'text-gray-600 hover:bg-gray-50 hover:text-brand-primary'
-                                                }`}
-                                        >
-                                            <Icon name={item.icon} size={18} />
-                                            {item.label}
-                                        </button>
-                                    ))}
-                                </nav>
+                                <div className="flex items-center gap-4">
+                                    <nav className="hidden md:flex gap-1">
+                                        {navItems.map(item => (
+                                            <button
+                                                key={item.id}
+                                                onClick={() => navigate(item.id)}
+                                                className={`px-4 py-2 rounded-full flex items-center gap-2 font-medium transition-all
+                                                    ${currentPage === item.id 
+                                                        ? 'bg-brand-primary/10 text-brand-primary' 
+                                                        : 'text-gray-600 hover:bg-gray-50 hover:text-brand-primary'
+                                                    }`}
+                                            >
+                                                <Icon name={item.icon} size={18} />
+                                                {item.label}
+                                            </button>
+                                        ))}
+                                    </nav>
 
-                                {/* Mobile Menu Button */}
-                                <div className="md:hidden">
-                                    <button 
-                                        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                                        className="text-brand-primary p-2"
-                                    >
-                                        <Icon name={isMobileMenuOpen ? "X" : "Menu"} size={28} />
+                                    {/* A11y Button */}
+                                    <button onClick={toggleA11yMenu} className="p-2 text-gray-500 hover:text-brand-primary hover:bg-gray-100 rounded-full transition" title="הגדרות נגישות">
+                                        <Icon name="Accessibility" size={20} />
                                     </button>
+
+                                    <div className="md:hidden">
+                                        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-brand-primary p-2">
+                                            <Icon name={isMobileMenuOpen ? "X" : "Menu"} size={28} />
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Mobile Navigation Dropdown */}
+                        {/* Mobile Menu */}
                         {isMobileMenuOpen && (
                             <div className="md:hidden border-t border-gray-100 bg-white absolute w-full shadow-lg">
                                 <div className="px-4 pt-2 pb-4 space-y-1">
                                     {navItems.map(item => (
                                         <button
                                             key={item.id}
-                                            onClick={() => {
-                                                setCurrentPage(item.id);
-                                                setIsMobileMenuOpen(false);
-                                            }}
+                                            onClick={() => navigate(item.id)}
                                             className={`w-full text-right px-4 py-3 rounded-xl flex items-center gap-3 font-medium transition-all
                                                 ${currentPage === item.id 
                                                     ? 'bg-brand-primary/10 text-brand-primary' 
@@ -698,10 +789,52 @@
                         )}
                     </header>
 
+                    {/* A11y Floating Menu */}
+                    {showA11y && (
+                        <div className="fixed top-24 left-4 sm:left-8 z-[100] flex flex-col items-start animate-fade-in">
+                            <div className="bg-white p-5 rounded-2xl shadow-2xl border-2 border-brand-secondary mb-3 w-64 text-right">
+                                <div className="flex justify-between items-center mb-4 border-b border-gray-200 pb-3">
+                                    <button onClick={toggleA11yMenu} className="text-gray-400 hover:text-red-500 transition">
+                                        <Icon name="X" size={20} />
+                                    </button>
+                                    <h3 className="font-bold text-brand-primary flex items-center gap-2">
+                                        נגישות <Icon name="Accessibility" size={20} className="text-brand-secondary" />
+                                    </h3>
+                                </div>
+                                <div className="space-y-2.5">
+                                    <button onClick={() => changeFontSize(2)} className="w-full bg-gray-50 hover:bg-gray-200 text-gray-800 px-4 py-2.5 rounded-xl text-sm font-bold transition flex justify-between items-center">
+                                        הגדל טקסט <Icon name="ZoomIn" size={16} />
+                                    </button>
+                                    <button onClick={() => changeFontSize(-2)} className="w-full bg-gray-50 hover:bg-gray-200 text-gray-800 px-4 py-2.5 rounded-xl text-sm font-bold transition flex justify-between items-center">
+                                        הקטן טקסט <Icon name="ZoomOut" size={16} />
+                                    </button>
+                                    <button onClick={toggleHighlightLinks} className="w-full bg-gray-50 hover:bg-gray-200 text-gray-800 px-4 py-2.5 rounded-xl text-sm font-bold transition flex justify-between items-center">
+                                        הדגשת קישורים <Icon name="Underline" size={16} />
+                                    </button>
+                                    <button onClick={toggleReadableFont} className="w-full bg-gray-50 hover:bg-gray-200 text-gray-800 px-4 py-2.5 rounded-xl text-sm font-bold transition flex justify-between items-center">
+                                        גופן קריא <Icon name="Type" size={16} />
+                                    </button>
+                                    <div className="w-full h-px bg-gray-200 my-2"></div>
+                                    <button onClick={resetA11y} className="w-full bg-red-50 text-red-600 hover:bg-red-100 px-4 py-2.5 rounded-xl text-sm font-bold transition flex justify-between items-center">
+                                        איפוס הגדרות <Icon name="RefreshCw" size={16} />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Main Content Area */}
                     <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 md:py-12 relative">
                         {renderPage()}
                     </main>
+
+                    {/* Back to Top Button */}
+                    <button 
+                        onClick={() => window.scrollTo({top: 0, behavior: 'smooth'})} 
+                        className={`fixed bottom-24 sm:bottom-8 left-6 bg-brand-primary text-white p-3 rounded-full shadow-xl transition-all duration-300 z-40 hover:scale-110 ${showBackToTop ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'}`}
+                    >
+                        <Icon name="ArrowUp" size={24} />
+                    </button>
 
                     {/* Footer */}
                     <footer className="bg-brand-dark text-white py-8 border-t-4 border-brand-secondary">
@@ -710,6 +843,7 @@
                             <p className="text-sm text-brand-light/50">מערכת תכנים פרטית</p>
                         </div>
                     </footer>
+
                 </div>
             );
         };
