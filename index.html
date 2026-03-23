@@ -773,7 +773,9 @@
             const [auth, setAuth] = React.useState(null);
             const [db, setDb] = React.useState(null);
             const [user, setUser] = React.useState(null);
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            
+            // הגדרת מזהה ייחודי לאתר הזה כדי שלא יתערבב עם פורום הבית היהודי
+            const appId = 'habait-zogot-tzeirim';
 
             const [currentPage, setCurrentPage] = React.useState('home');
             const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
@@ -799,7 +801,21 @@
                     const api = window.FirebaseAPI;
                     setFbAPI(api);
                     
-                    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "DEMO" };
+                    // =================================================================
+                    // 👈 שלב אחרון: העתק את הנתונים מתוך פורום הבית היהודי!
+                    // העתק את הבלוק הזה בדיוק מהקוד של "פורום הבית היהודי" (GITHUB_FIREBASE_CONFIG)
+                    // והדבק אותו כאן:
+                    // =================================================================
+                    const MY_FIREBASE_CONFIG = {
+                        apiKey: "AIzaSyDcMySKuq53A5E2I3jOBh9lOdfNCtDseXs", // זוהי דוגמה מהקוד ששלחת לי
+                        authDomain: "forum-habait.firebaseapp.com",
+                        projectId: "forum-habait",
+                        storageBucket: "forum-habait.firebasestorage.app",
+                        messagingSenderId: "944043917590",
+                        appId: "1:944043917590:web:e53815c257280f3e1dd037"
+                    };
+
+                    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : MY_FIREBASE_CONFIG;
                     const fbApp = api.initializeApp(firebaseConfig);
                     const fbAuth = api.getAuth(fbApp);
                     const fbDb = api.getFirestore(fbApp);
