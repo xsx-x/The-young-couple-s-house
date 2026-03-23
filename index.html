@@ -64,6 +64,14 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #842a47; 
         }
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
     </style>
 </head>
 <body>
@@ -76,7 +84,8 @@
         const { 
             Home, Folder, FolderOpen, FileText, FileAudio, FileVideo, 
             Search, ChevronLeft, Menu, X, Calendar, BookOpen, Info,
-            PlayCircle, ExternalLink, Clock, ShieldCheck, HeartHandshake
+            PlayCircle, ExternalLink, Clock, ShieldCheck, HeartHandshake,
+            Maximize
         } = lucide;
 
         // Helper to render Lucide icons in React without a bundler
@@ -130,7 +139,6 @@
                     skipEmptyLines: true,
                     complete: (results) => {
                         try {
-                            // הפעלת פונקציית המיפוי על כל שורה וסינון שורות ריקות
                             const mapped = results.data.map(mapRowFn).filter(Boolean);
                             setData(mapped);
                             setLoading(false);
@@ -148,9 +156,6 @@
 
             return { data, loading, error };
         };
-
-        // פונקציות מיפוי - מזהות עמודות לפי שם (מילות מפתח) או לפי סדר העמודות
-        // זה נועד למנוע שגיאות למקרה שכותרות הגיליון קצת שונות מהצפוי
         
         const mapDriveRow = (row, index) => {
             const vals = Object.values(row);
@@ -159,7 +164,6 @@
                 return foundKey ? row[foundKey] : vals[fallbackIndex];
             };
 
-            // זיהוי סוג קובץ לאייקון (וידאו/שמע/מסמך)
             let rawType = (getVal(['סוג', 'type'], 2) || '').toLowerCase();
             let type = 'pdf';
             if (rawType.includes('video') || rawType.includes('mp4') || rawType.includes('וידאו')) type = 'video';
@@ -209,7 +213,6 @@
         // Components
         // ----------------------------------------------------
 
-        // רכיבי טעינה ושגיאה
         const Loader = () => (
             <div className="flex flex-col items-center justify-center h-64 w-full">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-brand-primary mb-4"></div>
@@ -228,7 +231,6 @@
         // 1. Home Page
         const HomePage = ({ setPage }) => (
             <div className="animate-fade-in space-y-12">
-                {/* Hero Section */}
                 <div className="bg-white rounded-3xl shadow-sm border border-brand-secondary/20 overflow-hidden relative">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-brand-primary/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
                     <div className="absolute bottom-0 left-0 w-48 h-48 bg-brand-secondary/10 rounded-full -ml-24 -mb-24 blur-3xl"></div>
@@ -251,7 +253,6 @@
                     </div>
                 </div>
 
-                {/* Features */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 text-center hover:border-brand-secondary transition-colors">
                         <div className="bg-brand-secondary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-brand-secondary">
@@ -284,14 +285,12 @@
         const ExplorerPage = () => {
             const [currentPath, setCurrentPath] = React.useState("");
             const [searchQuery, setSearchQuery] = React.useState("");
+            const [selectedFile, setSelectedFile] = React.useState(null); // State for the file modal viewer
             
-            // משיכת נתונים בלייב
             const { data, loading, error } = useCSVData(CSV_URLS.DRIVE, mapDriveRow);
 
-            // Logic to calculate current directory contents
             const getDirectoryContents = () => {
                 if (searchQuery.trim() !== "") {
-                    // Search mode: show all matching files across all folders
                     return data
                         .filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                                         item.path.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -305,14 +304,11 @@
                     const itemFullPath = item.path ? `${item.path}/${item.name}` : item.name;
                     
                     if (currentPath === "" || item.path.startsWith(currentPath)) {
-                        // Get the relative path after the current directory
                         const relativePath = currentPath === "" ? item.path : item.path.replace(new RegExp(`^${currentPath}/?`), '');
                         
                         if (relativePath === "" || relativePath === item.path && currentPath !== "") {
-                            // File is directly in the current path
                             files.push({ ...item, isFolder: false });
                         } else {
-                            // It's inside a subfolder
                             const nextFolderName = relativePath.split('/')[0];
                             if (nextFolderName) {
                                 folders.add(nextFolderName);
@@ -340,21 +336,77 @@
 
             const breadcrumbs = currentPath.split('/').filter(p => p !== '');
 
-            const getFileIcon = (type) => {
+            const getFileIcon = (type, inModal = false) => {
+                const colorClass = inModal ? 'text-white' : 
+                    type === 'video' ? 'text-blue-500' :
+                    type === 'audio' ? 'text-brand-secondary' :
+                    type === 'pdf' ? 'text-red-500' : 'text-gray-500';
+
                 switch(type) {
-                    case 'video': return <Icon name="FileVideo" className="text-blue-500" size={32} />;
-                    case 'audio': return <Icon name="FileAudio" className="text-brand-secondary" size={32} />;
-                    case 'pdf': return <Icon name="FileText" className="text-red-500" size={32} />;
-                    default: return <Icon name="FileText" className="text-gray-500" size={32} />;
+                    case 'video': return <Icon name="FileVideo" className={colorClass} size={32} />;
+                    case 'audio': return <Icon name="FileAudio" className={colorClass} size={32} />;
+                    case 'pdf': return <Icon name="FileText" className={colorClass} size={32} />;
+                    default: return <Icon name="FileText" className={colorClass} size={32} />;
                 }
             };
 
+            // חילוץ מזהה הקובץ מהקישור כדי להציג ב-Iframe מוטמע
+            const getEmbedUrl = (url) => {
+                const driveIdMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/id=([a-zA-Z0-9_-]+)/);
+                if (driveIdMatch && driveIdMatch[1]) {
+                    return `https://drive.google.com/file/d/${driveIdMatch[1]}/preview`;
+                }
+                return url; // חזרה לקישור הרגיל במקרה של בעיה בחילוץ
+            };
+
             return (
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden min-h-[600px] flex flex-col">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden min-h-[600px] flex flex-col relative">
+                    
+                    {/* File Viewer Modal */}
+                    {selectedFile && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 md:p-8 animate-fade-in">
+                            <div className="bg-white w-full max-w-5xl h-full md:h-[90vh] rounded-2xl overflow-hidden flex flex-col shadow-2xl border border-brand-primary/20">
+                                {/* Modal Header */}
+                                <div className="bg-brand-primary text-white p-4 flex justify-between items-center shadow-md z-10">
+                                    <div className="flex items-center gap-3">
+                                        {getFileIcon(selectedFile.type, true)}
+                                        <h3 className="font-bold text-lg leading-tight" dir="rtl">{selectedFile.name}</h3>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <a 
+                                            href={selectedFile.url} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer" 
+                                            className="bg-brand-secondary hover:bg-yellow-600 text-white px-4 py-2 rounded-full text-sm font-bold transition-colors flex items-center gap-2"
+                                        >
+                                            <Icon name="ExternalLink" size={16} />
+                                            פתיחה בדרייב
+                                        </a>
+                                        <button 
+                                            onClick={() => setSelectedFile(null)} 
+                                            className="p-2 hover:bg-white/20 rounded-full transition-colors"
+                                            title="סגירה"
+                                        >
+                                            <Icon name="X" size={24} />
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                {/* Modal Body (Iframe embed) */}
+                                <div className="flex-1 bg-gray-100 relative w-full h-full">
+                                    <iframe 
+                                        src={getEmbedUrl(selectedFile.url)} 
+                                        className="w-full h-full border-none absolute inset-0" 
+                                        allow="autoplay"
+                                        title={selectedFile.name}
+                                    ></iframe>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Explorer Header */}
                     <div className="bg-gray-50 p-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4">
-                        
-                        {/* Breadcrumbs */}
                         <div className="flex items-center gap-2 text-gray-600 font-medium overflow-x-auto w-full sm:w-auto whitespace-nowrap">
                             <button onClick={() => handleNavigate("")} className="hover:text-brand-primary p-1">
                                 <Icon name="Home" size={20} />
@@ -375,7 +427,6 @@
                             })}
                         </div>
 
-                        {/* Search */}
                         <div className="relative w-full sm:w-64">
                             <input 
                                 type="text" 
@@ -410,22 +461,20 @@
                                             <span className="text-gray-800 font-medium text-center">{item.name}</span>
                                         </div>
                                     ) : (
-                                        <a 
+                                        <div 
                                             key={item.id}
-                                            href={item.url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
+                                            onClick={() => setSelectedFile(item)}
                                             className="group flex flex-col items-start p-4 bg-white rounded-xl border border-gray-200 hover:border-brand-primary hover:shadow-md transition-all cursor-pointer relative"
                                         >
                                             <div className="flex w-full items-start justify-between mb-3">
                                                 {getFileIcon(item.type)}
-                                                <Icon name="ExternalLink" size={16} className="text-gray-300 group-hover:text-brand-primary" />
+                                                <Icon name="Maximize" size={16} className="text-gray-300 group-hover:text-brand-primary transition-colors" />
                                             </div>
                                             <span className="text-gray-800 font-medium text-sm leading-tight mb-2 flex-1" dir="rtl">{item.name}</span>
                                             {item.date && (
                                                 <span className="text-xs text-gray-400 mt-auto">{item.date}</span>
                                             )}
-                                        </a>
+                                        </div>
                                     )
                                 ))}
                             </div>
@@ -461,9 +510,6 @@
                                     <h3 className="text-xl font-bold text-gray-800 mb-2">{item.title}</h3>
                                     <p className="text-gray-600">{item.description}</p>
                                 </div>
-                                <button className="mt-4 md:mt-0 bg-gray-100 hover:bg-brand-primary hover:text-white text-gray-700 px-6 py-2 rounded-full font-medium transition-colors w-full md:w-auto">
-                                    לפרטים נוספים
-                                </button>
                             </div>
                         ))}
                     </div>
@@ -581,7 +627,6 @@
                                     className="flex items-center gap-2 cursor-pointer" 
                                     onClick={() => setCurrentPage('home')}
                                 >
-                                    {/* Typography Logo mimicking the brand style */}
                                     <div className="flex items-center font-black text-4xl tracking-tighter">
                                         <div className="flex flex-col gap-1 ml-1 pt-1">
                                             {[1,2,3,4,5].map(i => (
@@ -654,7 +699,7 @@
                     </header>
 
                     {/* Main Content Area */}
-                    <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+                    <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 md:py-12 relative">
                         {renderPage()}
                     </main>
 
