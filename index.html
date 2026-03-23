@@ -48,19 +48,32 @@
     <!-- PapaParse for CSV processing -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
+    <!-- Firebase Imports (Modular via Script Type Module) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Exposing Firebase to React Window
+        window.FirebaseAPI = {
+            initializeApp, getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged,
+            createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile,
+            getFirestore, doc, setDoc, getDoc, collection, onSnapshot
+        };
+        window.dispatchEvent(new Event('firebaseLoaded'));
+    </script>
+
     <style>
         body {
             background-color: #fdfbf7;
             color: #333;
             transition: font-size 0.3s ease;
         }
-        /* Custom scrollbar for better look */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #b6843c; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #842a47; }
         
-        /* Animations */
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -73,7 +86,6 @@
         }
         .animate-slide-up { animation: slideUp 0.3s ease-out forwards; }
 
-        /* Marquee Animation */
         .marquee-wrapper {
             display: flex;
             overflow: hidden;
@@ -93,10 +105,9 @@
         .marquee-wrapper:hover .marquee-content { animation-play-state: paused; }
         @keyframes scroll-rtl {
             from { transform: translateX(0); }
-            to { transform: translateX(100%); } /* מותאם ל-RTL */
+            to { transform: translateX(100%); } 
         }
 
-        /* Accessibility Classes */
         .a11y-readable-font * { font-family: Arial, Helvetica, sans-serif !important; letter-spacing: 0.5px !important; }
         .a11y-highlight-links a, .a11y-highlight-links button { text-decoration: underline !important; font-weight: 800 !important; }
     </style>
@@ -106,14 +117,15 @@
 
     <script type="text/babel">
         // ----------------------------------------------------
-        // Icons setup (using Lucide React icons)
+        // Icons setup
         // ----------------------------------------------------
         const { 
             Home, Folder, FolderOpen, FileText, FileAudio, FileVideo, 
             Search, ChevronLeft, Menu, X, Calendar, BookOpen, Info,
             PlayCircle, ExternalLink, Clock, ShieldCheck, HeartHandshake,
             Maximize, Headphones, ArrowUp, Accessibility, ZoomIn, ZoomOut,
-            Underline, Type, RefreshCw, Quote, Volume2
+            Underline, Type, RefreshCw, Quote, Volume2, User, LogIn, LogOut,
+            History, BarChart, Lock
         } = lucide;
 
         const Icon = ({ name, size = 24, className = "" }) => {
@@ -142,6 +154,10 @@
             SCHEDULE: "https://docs.google.com/spreadsheets/d/e/2PACX-1vT6OmRPxlNhfecg0vfv-jgnWAgHk9C2NcsLwutzb64KGnisPymHTR02K6LXJBU3fuz15nq9dQTdq3uE/pub?gid=1693315274&single=true&output=csv"
         };
 
+        // רשימת כתובות המייל של מנהלי האתר - רק הם יראו את דוח הגולשים
+        // 👈 החלף את המייל כאן למייל האמיתי שלך שאיתו אתה נרשם כמנהל:
+        const ADMIN_EMAILS = ['hvusvmch@gmail.com', 'a0527130390@gmail.com', 'AVIEL2626@gmail.com', 'aviel@avielneriya.com', 'zugiyut3@gmail.com'];
+      
         const useCSVData = (url, mapRowFn) => {
             const [data, setData] = React.useState([]);
             const [loading, setLoading] = React.useState(true);
@@ -220,9 +236,8 @@
         };
 
         // ----------------------------------------------------
-        // Components
+        // Reusable UI Components
         // ----------------------------------------------------
-
         const Loader = () => (
             <div className="flex flex-col items-center justify-center h-64 w-full">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-brand-primary mb-4"></div>
@@ -238,7 +253,6 @@
             </div>
         );
 
-        // --- Marquee Component ---
         const TestimonialsMarquee = () => {
             const feedbacks = [
                 { text: "סוף סוף יש מישהו שמדבר על הדברים האלו... ומדבר על הכל פתוח! תודה רבה ושבת שלום!!!", author: "זוג מהמרכז" },
@@ -266,7 +280,6 @@
                                 </div>
                             ))}
                         </div>
-                        {/* Duplicate for infinite effect */}
                         <div className="marquee-content" aria-hidden="true">
                             {feedbacks.map((item, i) => (
                                 <div key={`dup-${i}`} className="bg-brand-light p-6 rounded-2xl border-t-4 border-brand-secondary shadow-sm relative w-80 flex-shrink-0 flex flex-col">
@@ -280,6 +293,10 @@
                 </div>
             );
         };
+
+        // ----------------------------------------------------
+        // App Pages
+        // ----------------------------------------------------
 
         // 1. Home Page
         const HomePage = ({ setPage }) => (
@@ -337,7 +354,7 @@
         );
 
         // 2. Explorer Page
-        const ExplorerPage = () => {
+        const ExplorerPage = ({ onFileInteract }) => {
             const [currentPath, setCurrentPath] = React.useState("");
             const [searchQuery, setSearchQuery] = React.useState("");
             const [selectedFile, setSelectedFile] = React.useState(null); 
@@ -391,6 +408,7 @@
 
             const handleFileClick = (item) => {
                 setSelectedFile(item);
+                onFileInteract(item); // Tracker for history
             };
 
             const breadcrumbs = currentPath.split('/').filter(p => p !== '');
@@ -420,7 +438,7 @@
             return (
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden min-h-[600px] flex flex-col relative">
                     
-                    {/* Modal for Video/PDF */}
+                    {/* Modal for Video/PDF/Audio */}
                     {selectedFile && (
                         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 md:p-8 animate-fade-in">
                             <div className="bg-white w-full max-w-5xl h-full md:h-[90vh] rounded-2xl overflow-hidden flex flex-col shadow-2xl border border-brand-primary/20">
@@ -642,43 +660,278 @@
             </div>
         );
 
+        // 6. History Page (User specifically requested)
+        const HistoryPage = ({ user, historyItems, onFileInteract }) => {
+            if (!user || user.isAnonymous) {
+                return (
+                    <div className="max-w-3xl mx-auto bg-white p-12 rounded-3xl shadow-sm border border-gray-100 text-center animate-fade-in">
+                        <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6"><Icon name="Lock" size={40} className="text-gray-400" /></div>
+                        <h3 className="text-2xl font-bold text-gray-800 mb-3">יש להתחבר כדי לראות היסטוריה</h3>
+                        <p className="text-gray-500 mb-8 max-w-sm mx-auto">ההיסטוריה נשמרת באופן אישי ומאובטח עבור משתמשים רשומים במערכת.</p>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
+                    <div className="text-center mb-10">
+                        <h2 className="text-3xl font-bold text-brand-primary mb-2">היסטוריית הצפייה שלי</h2>
+                        <p className="text-gray-600">כל התכנים שפתחת נשמרים כאן לגישה מהירה.</p>
+                    </div>
+
+                    {historyItems.length === 0 ? (
+                        <div className="text-center py-16 text-gray-500 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                            <Icon name="History" size={48} className="mx-auto mb-3 opacity-50" />
+                            עדיין לא צפית בשיעורים.
+                        </div>
+                    ) : (
+                        <div className="grid gap-4">
+                            {historyItems.map((item, idx) => (
+                                <div key={idx} onClick={() => onFileInteract(item)} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row md:items-center justify-between hover:border-brand-secondary transition cursor-pointer group">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-14 h-14 bg-brand-primary/10 rounded-full flex items-center justify-center group-hover:scale-105 transition-transform">
+                                            <Icon name={item.type === 'audio' ? 'Headphones' : item.type === 'video' ? 'FileVideo' : 'FileText'} size={24} className="text-brand-primary" />
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-gray-800 text-lg leading-tight">{item.name}</h4>
+                                            <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                                                <Icon name="Clock" size={12} /> נצפה לאחרונה: {new Date(item.lastWatched).toLocaleString('he-IL', {dateStyle: 'short', timeStyle: 'short'})}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <button className="mt-4 md:mt-0 bg-brand-light text-brand-primary font-bold py-2.5 px-6 rounded-xl text-sm transition flex items-center gap-2 group-hover:bg-brand-primary group-hover:text-white">
+                                        המשך צפייה <Icon name="ChevronLeft" size={16} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // 7. Admin Analytics Page
+        const AdminPage = ({ analytics, user }) => {
+            if (!user || user.isAnonymous) return null;
+
+            return (
+                <div className="max-w-5xl mx-auto space-y-8 animate-fade-in">
+                    <div className="text-center mb-10">
+                        <h2 className="text-3xl font-bold text-brand-primary mb-2 flex items-center justify-center gap-2">
+                            <Icon name="BarChart" size={32} /> דוח כניסות גולשים
+                        </h2>
+                        <p className="text-gray-600">מעקב כניסות רשומים (לשימוש פרטי של מנהלי המערכת).</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border-t-4 border-brand-primary flex flex-col items-center">
+                            <h4 className="text-gray-500 font-bold mb-2">סה"כ גולשים רשומים</h4>
+                            <span className="text-4xl font-extrabold text-brand-primary">{analytics.length}</span>
+                        </div>
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border-t-4 border-brand-secondary flex flex-col items-center">
+                            <h4 className="text-gray-500 font-bold mb-2">סה"כ כניסות (Logins)</h4>
+                            <span className="text-4xl font-extrabold text-brand-secondary">
+                                {analytics.reduce((acc, curr) => acc + (curr.visits || 1), 0)}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
+                        <table className="w-full text-right text-sm text-gray-600">
+                            <thead className="bg-gray-50 text-brand-primary font-bold">
+                                <tr>
+                                    <th className="px-6 py-4">שם משתמש</th>
+                                    <th className="px-6 py-4">כתובת מייל</th>
+                                    <th className="px-6 py-4">מספר כניסות</th>
+                                    <th className="px-6 py-4">כניסה אחרונה</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {analytics.map((stat, i) => (
+                                    <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
+                                        <td className="px-6 py-4 font-bold text-gray-800">{stat.name}</td>
+                                        <td className="px-6 py-4" dir="ltr">{stat.email}</td>
+                                        <td className="px-6 py-4">
+                                            <span className="bg-brand-light text-brand-primary px-3 py-1 rounded-full font-bold">{stat.visits}</span>
+                                        </td>
+                                        <td className="px-6 py-4">{new Date(stat.lastVisit).toLocaleString('he-IL', {dateStyle: 'short', timeStyle: 'short'})}</td>
+                                    </tr>
+                                ))}
+                                {analytics.length === 0 && <tr><td colSpan="4" className="text-center py-8">אין עדיין נתוני גולשים.</td></tr>}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        };
+
         // ----------------------------------------------------
         // Main App Container
         // ----------------------------------------------------
         const App = () => {
+            const [fbAPI, setFbAPI] = React.useState(null);
+            const [auth, setAuth] = React.useState(null);
+            const [db, setDb] = React.useState(null);
+            const [user, setUser] = React.useState(null);
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
             const [currentPage, setCurrentPage] = React.useState('home');
             const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
             const [showBackToTop, setShowBackToTop] = React.useState(false);
-
-            // A11y State
             const [showA11y, setShowA11y] = React.useState(false);
 
-            // Handle URL Routing
+            // Auth Modal State
+            const [showAuthModal, setShowAuthModal] = React.useState(false);
+            const [authMode, setAuthMode] = React.useState('login'); // 'login' or 'register'
+            const [authEmail, setAuthEmail] = React.useState('');
+            const [authPassword, setAuthPassword] = React.useState('');
+            const [authName, setAuthName] = React.useState('');
+            const [authError, setAuthError] = React.useState('');
+
+            // History & Analytics State
+            const [historyItems, setHistoryItems] = React.useState([]);
+            const [analyticsData, setAnalyticsData] = React.useState([]);
+
+            // Firebase Initialization
+            React.useEffect(() => {
+                const initFirebase = () => {
+                    if (!window.FirebaseAPI) return;
+                    const api = window.FirebaseAPI;
+                    setFbAPI(api);
+                    
+                    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "DEMO" };
+                    const fbApp = api.initializeApp(firebaseConfig);
+                    const fbAuth = api.getAuth(fbApp);
+                    const fbDb = api.getFirestore(fbApp);
+                    setAuth(fbAuth);
+                    setDb(fbDb);
+
+                    const initAuthFlow = async () => {
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await api.signInWithCustomToken(fbAuth, __initial_auth_token);
+                        } else if (!fbAuth.currentUser) {
+                            await api.signInAnonymously(fbAuth);
+                        }
+                    };
+                    initAuthFlow();
+
+                    api.onAuthStateChanged(fbAuth, (u) => {
+                        setUser(u);
+                        if (u && !u.isAnonymous) {
+                            trackVisit(u, api, fbDb);
+                        }
+                    });
+                };
+
+                if (window.firebaseLoaded) initFirebase();
+                else window.addEventListener('firebaseLoaded', initFirebase);
+            }, []);
+
+            // Track Visit Analytics (Public Data)
+            const trackVisit = async (usr, api, dbRef) => {
+                try {
+                    const docRef = api.doc(dbRef, 'artifacts', appId, 'public', 'data', 'analytics', usr.uid);
+                    const snap = await api.getDoc(docRef);
+                    const existingData = snap.exists() ? snap.data() : { visits: 0 };
+                    
+                    await api.setDoc(docRef, {
+                        name: usr.displayName || 'משתמש/ת',
+                        email: usr.email,
+                        visits: (existingData.visits || 0) + 1,
+                        lastVisit: Date.now()
+                    }, { merge: true });
+                } catch (e) { console.error("Error tracking visit:", e); }
+            };
+
+            // Fetch History (Private Data)
+            React.useEffect(() => {
+                if (!fbAPI || !db || !user || user.isAnonymous) return;
+                const historyRef = fbAPI.collection(db, 'artifacts', appId, 'users', user.uid, 'history');
+                
+                const unsub = fbAPI.onSnapshot(historyRef, (snapshot) => {
+                    const items = [];
+                    snapshot.forEach(doc => items.push(doc.data()));
+                    items.sort((a, b) => b.lastWatched - a.lastWatched);
+                    setHistoryItems(items);
+                }, (error) => console.error("Error fetching history"));
+                
+                return () => unsub();
+            }, [user, fbAPI, db]);
+
+            // Fetch Analytics (Admin View - מוגבל למנהלים בלבד!)
+            React.useEffect(() => {
+                if (!fbAPI || !db || !user || user.isAnonymous || !ADMIN_EMAILS.includes(user.email)) return;
+                const analyticsRef = fbAPI.collection(db, 'artifacts', appId, 'public', 'data', 'analytics');
+                
+                const unsub = fbAPI.onSnapshot(analyticsRef, (snapshot) => {
+                    const items = [];
+                    snapshot.forEach(doc => items.push(doc.data()));
+                    items.sort((a, b) => b.lastVisit - a.lastVisit);
+                    setAnalyticsData(items);
+                }, (error) => console.error("Error fetching analytics"));
+                
+                return () => unsub();
+            }, [user, fbAPI, db]);
+
+            const saveToHistory = async (item) => {
+                if (!fbAPI || !db || !user || user.isAnonymous) return;
+                try {
+                    const safeId = btoa(encodeURIComponent(item.name)).replace(/=/g,'').substring(0, 30);
+                    const docRef = fbAPI.doc(db, 'artifacts', appId, 'users', user.uid, 'history', safeId);
+                    await fbAPI.setDoc(docRef, { ...item, lastWatched: Date.now() });
+                } catch (e) { console.error("Error saving history", e); }
+            };
+
+            // URL Routing & Scrolling
             React.useEffect(() => {
                 const handleHashChange = () => {
                     const hash = window.location.hash.replace('#', '') || 'home';
-                    const validPages = ['home', 'explorer', 'schedule', 'articles', 'about'];
-                    if (validPages.includes(hash)) {
-                        setCurrentPage(hash);
-                    }
+                    const validPages = ['home', 'explorer', 'schedule', 'articles', 'about', 'history', 'admin'];
+                    if (validPages.includes(hash)) setCurrentPage(hash);
                 };
-                
-                handleHashChange(); // Init on load
+                handleHashChange(); 
                 window.addEventListener('hashchange', handleHashChange);
                 return () => window.removeEventListener('hashchange', handleHashChange);
             }, []);
 
-            const navigate = (pageId) => {
-                window.location.hash = pageId;
-                setIsMobileMenuOpen(false);
-            };
-
-            // Scroll Listener for Back to Top
             React.useEffect(() => {
                 const handleScroll = () => setShowBackToTop(window.scrollY > 300);
                 window.addEventListener('scroll', handleScroll);
                 return () => window.removeEventListener('scroll', handleScroll);
             }, []);
+
+            const navigate = (pageId) => {
+                window.location.hash = pageId;
+                setIsMobileMenuOpen(false);
+                window.scrollTo({top: 0, behavior: 'smooth'});
+            };
+
+            // Auth Handlers
+            const handleAuthSubmit = async (e) => {
+                e.preventDefault();
+                setAuthError('');
+                try {
+                    if (authMode === 'login') {
+                        await fbAPI.signInWithEmailAndPassword(auth, authEmail, authPassword);
+                    } else {
+                        const cred = await fbAPI.createUserWithEmailAndPassword(auth, authEmail, authPassword);
+                        if (authName) await fbAPI.updateProfile(cred.user, { displayName: authName });
+                    }
+                    setShowAuthModal(false);
+                    setAuthEmail(''); setAuthPassword(''); setAuthName('');
+                } catch (err) {
+                    let msg = "שגיאה במערכת, נסה שנית.";
+                    if (err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') msg = "פרטי ההתחברות אינם נכונים.";
+                    if (err.code === 'auth/email-already-in-use') msg = "כתובת המייל הזו כבר רשומה במערכת.";
+                    if (err.code === 'auth/weak-password') msg = "סיסמה חלשה מדי (לפחות 6 תווים).";
+                    setAuthError(msg);
+                }
+            };
+
+            const handleLogout = async () => {
+                await fbAPI.signOut(auth);
+                navigate('home');
+            };
 
             // A11y Methods
             const toggleA11yMenu = () => setShowA11y(!showA11y);
@@ -700,15 +953,19 @@
                 { id: 'schedule', label: 'לוח זמנים', icon: 'Calendar' },
                 { id: 'articles', label: 'מאמרים', icon: 'BookOpen' },
                 { id: 'about', label: 'אודות', icon: 'Info' },
+                ...(user && !user.isAnonymous ? [{ id: 'history', label: 'היסטוריית צפייה', icon: 'History' }] : []),
+                ...(user && !user.isAnonymous && ADMIN_EMAILS.includes(user.email) ? [{ id: 'admin', label: 'דוח גולשים', icon: 'BarChart' }] : [])
             ];
 
             const renderPage = () => {
                 switch(currentPage) {
                     case 'home': return <HomePage setPage={navigate} />;
-                    case 'explorer': return <ExplorerPage />;
+                    case 'explorer': return <ExplorerPage onFileInteract={saveToHistory} />;
                     case 'schedule': return <SchedulePage />;
                     case 'articles': return <ArticlesPage />;
                     case 'about': return <AboutPage />;
+                    case 'history': return <HistoryPage user={user} historyItems={historyItems} onFileInteract={(i) => { saveToHistory(i); navigate('explorer'); }} />;
+                    case 'admin': return (user && ADMIN_EMAILS.includes(user.email)) ? <AdminPage analytics={analyticsData} user={user} /> : <HomePage setPage={navigate} />;
                     default: return <HomePage setPage={navigate} />;
                 }
             };
@@ -716,7 +973,7 @@
             return (
                 <div className="min-h-screen flex flex-col font-sans relative pb-20 sm:pb-0">
                     
-                    {/* Header / Navbar */}
+                    {/* Header */}
                     <header className="bg-white shadow-sm sticky top-0 z-50">
                         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                             <div className="flex justify-between items-center h-20">
@@ -734,30 +991,48 @@
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-4">
-                                    <nav className="hidden md:flex gap-1">
+                                <div className="flex items-center gap-2 sm:gap-4">
+                                    <nav className="hidden lg:flex gap-1 overflow-x-auto">
                                         {navItems.map(item => (
                                             <button
                                                 key={item.id}
                                                 onClick={() => navigate(item.id)}
-                                                className={`px-4 py-2 rounded-full flex items-center gap-2 font-medium transition-all
+                                                className={`px-3 py-2 rounded-full flex items-center gap-1.5 font-medium transition-all text-sm whitespace-nowrap
                                                     ${currentPage === item.id 
                                                         ? 'bg-brand-primary/10 text-brand-primary' 
                                                         : 'text-gray-600 hover:bg-gray-50 hover:text-brand-primary'
                                                     }`}
                                             >
-                                                <Icon name={item.icon} size={18} />
+                                                <Icon name={item.icon} size={16} />
                                                 {item.label}
                                             </button>
                                         ))}
                                     </nav>
+
+                                    <div className="w-px h-6 bg-gray-200 hidden sm:block"></div>
+
+                                    {/* User / Auth Area */}
+                                    <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100">
+                                        {!user || user.isAnonymous ? (
+                                            <button onClick={() => { setAuthMode('login'); setShowAuthModal(true); }} className="text-sm font-bold text-brand-primary hover:text-brand-secondary transition flex items-center gap-1">
+                                                <Icon name="User" size={16} /> התחברות
+                                            </button>
+                                        ) : (
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-sm font-bold text-gray-700 hidden sm:block">שלום, {user.displayName || 'משתמש/ת'}</span>
+                                                <button onClick={handleLogout} className="text-gray-400 hover:text-red-500 transition" title="התנתק">
+                                                    <Icon name="LogOut" size={16} />
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
 
                                     {/* A11y Button */}
                                     <button onClick={toggleA11yMenu} className="p-2 text-gray-500 hover:text-brand-primary hover:bg-gray-100 rounded-full transition" title="הגדרות נגישות">
                                         <Icon name="Accessibility" size={20} />
                                     </button>
 
-                                    <div className="md:hidden">
+                                    <div className="lg:hidden">
                                         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-brand-primary p-2">
                                             <Icon name={isMobileMenuOpen ? "X" : "Menu"} size={28} />
                                         </button>
@@ -768,7 +1043,7 @@
 
                         {/* Mobile Menu */}
                         {isMobileMenuOpen && (
-                            <div className="md:hidden border-t border-gray-100 bg-white absolute w-full shadow-lg">
+                            <div className="lg:hidden border-t border-gray-100 bg-white absolute w-full shadow-lg">
                                 <div className="px-4 pt-2 pb-4 space-y-1">
                                     {navItems.map(item => (
                                         <button
@@ -788,6 +1063,52 @@
                             </div>
                         )}
                     </header>
+
+                    {/* Auth Modal */}
+                    {showAuthModal && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+                            <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center relative shadow-2xl">
+                                <button onClick={() => setShowAuthModal(false)} className="absolute top-4 left-4 text-gray-400 hover:text-gray-800 bg-gray-100 p-2 rounded-full transition">
+                                    <Icon name="X" size={20} />
+                                </button>
+                                <div className="w-16 h-16 bg-brand-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Icon name={authMode === 'login' ? "LogIn" : "User"} size={32} className="text-brand-primary" />
+                                </div>
+                                <h3 className="text-2xl font-bold text-gray-800 mb-6">{authMode === 'login' ? 'התחברות למערכת' : 'הרשמה חדשה'}</h3>
+                                
+                                <form onSubmit={handleAuthSubmit} className="space-y-4 text-right">
+                                    {authMode === 'register' && (
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">שם מלא</label>
+                                            <input type="text" required value={authName} onChange={e => setAuthName(e.target.value)} className="w-full border border-gray-300 rounded-xl px-4 py-2 focus:border-brand-primary outline-none transition" />
+                                        </div>
+                                    )}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">אימייל</label>
+                                        <input type="email" required value={authEmail} onChange={e => setAuthEmail(e.target.value)} className="w-full border border-gray-300 rounded-xl px-4 py-2 focus:border-brand-primary outline-none transition text-left" dir="ltr" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">סיסמה (לפחות 6 תווים)</label>
+                                        <input type="password" required value={authPassword} onChange={e => setAuthPassword(e.target.value)} className="w-full border border-gray-300 rounded-xl px-4 py-2 focus:border-brand-primary outline-none transition text-left" dir="ltr" />
+                                    </div>
+                                    
+                                    {authError && <div className="text-red-600 bg-red-50 p-2 rounded-lg text-sm text-center font-bold">{authError}</div>}
+
+                                    <button type="submit" className="w-full bg-brand-primary hover:bg-brand-dark text-white font-bold py-3 rounded-xl transition shadow mt-2">
+                                        {authMode === 'login' ? 'היכנס למערכת' : 'צור חשבון ושמור היסטוריה'}
+                                    </button>
+                                </form>
+
+                                <div className="mt-6 pt-4 border-t border-gray-100 text-sm">
+                                    {authMode === 'login' ? (
+                                        <button onClick={() => { setAuthMode('register'); setAuthError(''); }} className="text-brand-secondary hover:text-brand-primary font-bold">אין לך חשבון? לחץ כאן להרשמה</button>
+                                    ) : (
+                                        <button onClick={() => { setAuthMode('login'); setAuthError(''); }} className="text-brand-secondary hover:text-brand-primary font-bold">כבר רשום? לחץ כאן להתחברות</button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* A11y Floating Menu */}
                     {showA11y && (
