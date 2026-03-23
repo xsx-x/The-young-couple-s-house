@@ -42,6 +42,9 @@
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
+    <!-- PapaParse for CSV processing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
     <style>
         body {
             background-color: #fdfbf7;
@@ -105,36 +108,122 @@
         };
 
         // ----------------------------------------------------
-        // Mock Data (Replace with Google Sheets fetch logic later)
+        // Constants & Data Fetching Logic (Google Sheets)
         // ----------------------------------------------------
-        // במערכת האמיתית, פונקציית המשיכה שלך תיקח את הנתונים מגוגל שיטס
-        // ותהפוך אותם למערכים בסגנון הזה.
         
-        const MOCK_DRIVE_DATA = [
-            { id: 1, name: "הקדמה והיכרות.mp4", type: "video", path: "שלום בית/פרק א - יסודות הקשר", url: "#", date: "01/03/2026" },
-            { id: 2, name: "כוחה של הקשבה אקטיבית.mp3", type: "audio", path: "שלום בית/פרק א - יסודות הקשר", url: "#", date: "05/03/2026" },
-            { id: 3, name: "חוברת עבודה לזוג - תקשורת.pdf", type: "pdf", path: "שלום בית/פרק א - יסודות הקשר/חומרי עזר", url: "#", date: "10/03/2026" },
-            { id: 4, name: "בניית אווירה חיובית.mp4", type: "video", path: "שלום בית/פרק ב - בניית הבית", url: "#", date: "12/03/2026" },
-            { id: 5, name: "שידור חי - הכנה לשבת.mp4", type: "video", path: "מועדי ישראל/שבת קודש", url: "#", date: "15/03/2026" },
-            { id: 6, name: "זמני כניסת שבת והלכות.pdf", type: "pdf", path: "מועדי ישראל/שבת קודש", url: "#", date: "16/03/2026" },
-            { id: 7, name: "חינוך בגיל הרך.mp3", type: "audio", path: "חינוך ילדים", url: "#", date: "20/03/2026" },
-        ];
+        const CSV_URLS = {
+            DRIVE: "https://docs.google.com/spreadsheets/d/e/2PACX-1vT6OmRPxlNhfecg0vfv-jgnWAgHk9C2NcsLwutzb64KGnisPymHTR02K6LXJBU3fuz15nq9dQTdq3uE/pub?gid=0&single=true&output=csv",
+            ARTICLES: "https://docs.google.com/spreadsheets/d/e/2PACX-1vT6OmRPxlNhfecg0vfv-jgnWAgHk9C2NcsLwutzb64KGnisPymHTR02K6LXJBU3fuz15nq9dQTdq3uE/pub?gid=1100608744&single=true&output=csv",
+            SCHEDULE: "https://docs.google.com/spreadsheets/d/e/2PACX-1vT6OmRPxlNhfecg0vfv-jgnWAgHk9C2NcsLwutzb64KGnisPymHTR02K6LXJBU3fuz15nq9dQTdq3uE/pub?gid=1693315274&single=true&output=csv"
+        };
 
-        const MOCK_SCHEDULE = [
-            { id: 1, title: "שידור חי: שאלות ותשובות", date: "25/03/2026", time: "21:00", description: "מפגש זום חודשי למענה על שאלות שנשלחו מראש בסודיות." },
-            { id: 2, title: "סדנת תקשורת מקרבת - חלק א'", date: "28/03/2026", time: "20:30", description: "נלמד כלים פרקטיים להבנה טובה יותר של בן/בת הזוג." },
-            { id: 3, title: "הכנה רוחנית ומעשית לחג הפסח", date: "05/04/2026", time: "21:15", description: "איך לעבור את הניקיונות וההכנות מתוך רוגע ושלום." }
-        ];
+        const useCSVData = (url, mapRowFn) => {
+            const [data, setData] = React.useState([]);
+            const [loading, setLoading] = React.useState(true);
+            const [error, setError] = React.useState(null);
 
-        const MOCK_ARTICLES = [
-            { id: 1, title: "איך לייצר זמן איכות למרות העומס?", summary: "החיים עמוסים, העבודה, הבית והילדים שואבים אותנו. מאמר קצר שייתן לכם טיפים לייצר 'איים' של שקט.", date: "18/03/2026" },
-            { id: 2, title: "להרגיש יותר נורמליים: כולם עוברים את זה", summary: "אתם לא לבד! כל זוג צעיר נתקל באתגרים דומים בתחילת הדרך. בואו נדבר על זה בפתיחות.", date: "10/03/2026" },
-            { id: 3, title: "המתכון לבית רגוע", summary: "שלושה עקרונות יסוד שיעזרו לכם להכניס יותר שלוות נפש למרחב הביתי שלכם.", date: "02/03/2026" }
-        ];
+            React.useEffect(() => {
+                setLoading(true);
+                Papa.parse(url, {
+                    download: true,
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: (results) => {
+                        try {
+                            // הפעלת פונקציית המיפוי על כל שורה וסינון שורות ריקות
+                            const mapped = results.data.map(mapRowFn).filter(Boolean);
+                            setData(mapped);
+                            setLoading(false);
+                        } catch (err) {
+                            setError(err.message);
+                            setLoading(false);
+                        }
+                    },
+                    error: (err) => {
+                        setError(err.message);
+                        setLoading(false);
+                    }
+                });
+            }, [url]);
+
+            return { data, loading, error };
+        };
+
+        // פונקציות מיפוי - מזהות עמודות לפי שם (מילות מפתח) או לפי סדר העמודות
+        // זה נועד למנוע שגיאות למקרה שכותרות הגיליון קצת שונות מהצפוי
+        
+        const mapDriveRow = (row, index) => {
+            const vals = Object.values(row);
+            const getVal = (keywords, fallbackIndex) => {
+                const foundKey = Object.keys(row).find(k => keywords.some(keyword => k.toLowerCase().includes(keyword)));
+                return foundKey ? row[foundKey] : vals[fallbackIndex];
+            };
+
+            // זיהוי סוג קובץ לאייקון (וידאו/שמע/מסמך)
+            let rawType = (getVal(['סוג', 'type'], 2) || '').toLowerCase();
+            let type = 'pdf';
+            if (rawType.includes('video') || rawType.includes('mp4') || rawType.includes('וידאו')) type = 'video';
+            if (rawType.includes('audio') || rawType.includes('mp3') || rawType.includes('שמע') || rawType.includes('קול')) type = 'audio';
+
+            return {
+                id: index,
+                name: getVal(['שם', 'name', 'קובץ'], 0) || 'קובץ ללא שם',
+                path: getVal(['נתיב', 'path', 'תיקיה'], 1) || '',
+                type: type,
+                url: getVal(['קישור', 'url', 'link', 'לינק'], 3) || '#',
+                date: getVal(['תאריך', 'date', 'זמן'], 4) || ''
+            };
+        };
+
+        const mapScheduleRow = (row, index) => {
+            const vals = Object.values(row);
+            const getVal = (keywords, fallbackIndex) => {
+                const foundKey = Object.keys(row).find(k => keywords.some(keyword => k.toLowerCase().includes(keyword)));
+                return foundKey ? row[foundKey] : vals[fallbackIndex];
+            };
+            return {
+                id: index,
+                title: getVal(['כותרת', 'שם', 'נושא', 'title'], 0) || 'ללא כותרת',
+                date: getVal(['תאריך', 'date'], 1) || '',
+                time: getVal(['שעה', 'זמן', 'time'], 2) || '',
+                description: getVal(['תיאור', 'פירוט', 'desc'], 3) || ''
+            };
+        };
+
+        const mapArticleRow = (row, index) => {
+            const vals = Object.values(row);
+            const getVal = (keywords, fallbackIndex) => {
+                const foundKey = Object.keys(row).find(k => keywords.some(keyword => k.toLowerCase().includes(keyword)));
+                return foundKey ? row[foundKey] : vals[fallbackIndex];
+            };
+            return {
+                id: index,
+                title: getVal(['כותרת', 'שם', 'title'], 0) || 'ללא כותרת',
+                summary: getVal(['תקציר', 'תיאור', 'summary', 'תוכן'], 1) || '',
+                date: getVal(['תאריך', 'date'], 2) || '',
+                url: getVal(['קישור', 'url', 'link'], 3) || '#'
+            };
+        };
 
         // ----------------------------------------------------
         // Components
         // ----------------------------------------------------
+
+        // רכיבי טעינה ושגיאה
+        const Loader = () => (
+            <div className="flex flex-col items-center justify-center h-64 w-full">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-brand-primary mb-4"></div>
+                <p className="text-gray-500 font-medium">טוען נתונים מהמערכת...</p>
+            </div>
+        );
+
+        const ErrorMsg = ({msg}) => (
+            <div className="flex flex-col items-center justify-center h-64 w-full text-red-500">
+                <Icon name="Info" size={48} className="mb-4 opacity-50" />
+                <p className="font-medium">שגיאה בטעינת הנתונים</p>
+                <p className="text-sm opacity-80">{msg}</p>
+            </div>
+        );
 
         // 1. Home Page
         const HomePage = ({ setPage }) => (
@@ -195,7 +284,9 @@
         const ExplorerPage = () => {
             const [currentPath, setCurrentPath] = React.useState("");
             const [searchQuery, setSearchQuery] = React.useState("");
-            const [data, setData] = React.useState(MOCK_DRIVE_DATA); // יוחלף במידע מגוגל שיטס
+            
+            // משיכת נתונים בלייב
+            const { data, loading, error } = useCSVData(CSV_URLS.DRIVE, mapDriveRow);
 
             // Logic to calculate current directory contents
             const getDirectoryContents = () => {
@@ -301,7 +392,7 @@
 
                     {/* Explorer Body */}
                     <div className="p-4 flex-1 overflow-y-auto">
-                        {contents.length === 0 ? (
+                        {loading ? <Loader /> : error ? <ErrorMsg msg={error} /> : contents.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-full text-gray-400 py-12">
                                 <Icon name="FolderOpen" size={64} className="mb-4 opacity-50" />
                                 <p className="text-lg">לא נמצאו תכנים בתיקיה זו.</p>
@@ -345,63 +436,71 @@
         };
 
         // 3. Schedule Page
-        const SchedulePage = () => (
-            <div className="space-y-6 animate-fade-in">
-                <div className="text-center mb-10">
-                    <h2 className="text-3xl font-bold text-brand-primary mb-3">לוח זמני שיעורים</h2>
-                    <p className="text-gray-600">התעדכנו בשידורים החיים והסדנאות הקרובות שלנו.</p>
-                </div>
+        const SchedulePage = () => {
+            const { data, loading, error } = useCSVData(CSV_URLS.SCHEDULE, mapScheduleRow);
 
-                <div className="grid gap-4 max-w-4xl mx-auto">
-                    {MOCK_SCHEDULE.map(item => (
-                        <div key={item.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row items-start md:items-center gap-6 hover:border-brand-secondary transition-colors">
-                            <div className="bg-brand-primary/10 text-brand-primary rounded-xl p-4 flex flex-col items-center justify-center min-w-[100px] shrink-0">
-                                <Icon name="Calendar" size={24} className="mb-1" />
-                                <span className="font-bold">{item.date}</span>
-                            </div>
-                            <div className="flex-1">
-                                <div className="flex items-center gap-2 text-brand-secondary font-medium mb-1">
-                                    <Icon name="Clock" size={16} />
-                                    <span>בשעה {item.time}</span>
+            return (
+                <div className="space-y-6 animate-fade-in">
+                    <div className="text-center mb-10">
+                        <h2 className="text-3xl font-bold text-brand-primary mb-3">לוח זמני שיעורים</h2>
+                        <p className="text-gray-600">התעדכנו בשידורים החיים והסדנאות הקרובות שלנו.</p>
+                    </div>
+
+                    <div className="grid gap-4 max-w-4xl mx-auto">
+                        {loading ? <Loader /> : error ? <ErrorMsg msg={error} /> : data.map(item => (
+                            <div key={item.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row items-start md:items-center gap-6 hover:border-brand-secondary transition-colors">
+                                <div className="bg-brand-primary/10 text-brand-primary rounded-xl p-4 flex flex-col items-center justify-center min-w-[100px] shrink-0">
+                                    <Icon name="Calendar" size={24} className="mb-1" />
+                                    <span className="font-bold">{item.date}</span>
                                 </div>
-                                <h3 className="text-xl font-bold text-gray-800 mb-2">{item.title}</h3>
-                                <p className="text-gray-600">{item.description}</p>
-                            </div>
-                            <button className="mt-4 md:mt-0 bg-gray-100 hover:bg-brand-primary hover:text-white text-gray-700 px-6 py-2 rounded-full font-medium transition-colors w-full md:w-auto">
-                                לפרטים נוספים
-                            </button>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        );
-
-        // 4. Articles Page
-        const ArticlesPage = () => (
-            <div className="space-y-8 animate-fade-in">
-                <div className="text-center mb-10">
-                    <h2 className="text-3xl font-bold text-brand-primary mb-3">מאמרים וקריאה מהירה</h2>
-                    <p className="text-gray-600">ידע מקצועי וערכי להעמקת הקשר הזוגי, נגיש ונוח לקריאה.</p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {MOCK_ARTICLES.map(article => (
-                        <div key={article.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
-                            <div className="h-2 bg-brand-secondary w-full"></div>
-                            <div className="p-6 flex-1 flex flex-col">
-                                <span className="text-xs text-gray-400 mb-2 block">{article.date}</span>
-                                <h3 className="text-xl font-bold text-brand-primary mb-3">{article.title}</h3>
-                                <p className="text-gray-600 mb-6 flex-1 text-sm leading-relaxed">{article.summary}</p>
-                                <button className="text-brand-secondary font-bold flex items-center gap-1 hover:text-brand-primary transition-colors mt-auto">
-                                    קראו עוד
-                                    <Icon name="ChevronLeft" size={16} />
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2 text-brand-secondary font-medium mb-1">
+                                        <Icon name="Clock" size={16} />
+                                        <span>בשעה {item.time}</span>
+                                    </div>
+                                    <h3 className="text-xl font-bold text-gray-800 mb-2">{item.title}</h3>
+                                    <p className="text-gray-600">{item.description}</p>
+                                </div>
+                                <button className="mt-4 md:mt-0 bg-gray-100 hover:bg-brand-primary hover:text-white text-gray-700 px-6 py-2 rounded-full font-medium transition-colors w-full md:w-auto">
+                                    לפרטים נוספים
                                 </button>
                             </div>
-                        </div>
-                    ))}
+                        ))}
+                    </div>
                 </div>
-            </div>
-        );
+            );
+        };
+
+        // 4. Articles Page
+        const ArticlesPage = () => {
+            const { data, loading, error } = useCSVData(CSV_URLS.ARTICLES, mapArticleRow);
+
+            return (
+                <div className="space-y-8 animate-fade-in">
+                    <div className="text-center mb-10">
+                        <h2 className="text-3xl font-bold text-brand-primary mb-3">מאמרים וקריאה מהירה</h2>
+                        <p className="text-gray-600">ידע מקצועי וערכי להעמקת הקשר הזוגי, נגיש ונוח לקריאה.</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {loading ? <Loader /> : error ? <ErrorMsg msg={error} /> : data.map(article => (
+                            <div key={article.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
+                                <div className="h-2 bg-brand-secondary w-full"></div>
+                                <div className="p-6 flex-1 flex flex-col">
+                                    <span className="text-xs text-gray-400 mb-2 block">{article.date}</span>
+                                    <h3 className="text-xl font-bold text-brand-primary mb-3">{article.title}</h3>
+                                    <p className="text-gray-600 mb-6 flex-1 text-sm leading-relaxed">{article.summary}</p>
+                                    <a href={article.url} target="_blank" rel="noopener noreferrer" className="text-brand-secondary font-bold flex items-center gap-1 hover:text-brand-primary transition-colors mt-auto w-max">
+                                        קראו עוד
+                                        <Icon name="ChevronLeft" size={16} />
+                                    </a>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
 
         // 5. About Page
         const AboutPage = () => (
