@@ -398,10 +398,19 @@
                     const files = [];
 
                     data.forEach(item => {
-                        const itemFullPath = item.path ? `${item.path}/${item.name}` : item.name;
-                        if (currentPath === "" || item.path.startsWith(currentPath)) {
-                            const relativePath = currentPath === "" ? item.path : item.path.replace(new RegExp(`^${currentPath}/?`), '');
-                            if (relativePath === "" || relativePath === item.path && currentPath !== "") {
+                        if (currentPath === "" || item.path === currentPath || item.path.startsWith(currentPath + "/")) {
+                            let relativePath = "";
+                            if (currentPath === "") {
+                                relativePath = item.path;
+                            } else {
+                                if (item.path === currentPath) {
+                                    relativePath = "";
+                                } else {
+                                    relativePath = item.path.substring(currentPath.length + 1);
+                                }
+                            }
+
+                            if (relativePath === "") {
                                 files.push({ ...item, isFolder: false });
                             } else {
                                 const nextFolderName = relativePath.split('/')[0];
