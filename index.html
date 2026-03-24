@@ -114,7 +114,7 @@
         // ====================================================================
         // 👈 הדבק כאן את הקישור שקיבלת מהסקריפט ב-Google Sheets!
         // ====================================================================
-        const APP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzj3-TVx8Yh_qBASnvFQ0H4W6_6qD0G86kR3Z7H6Yo5V7OvJ0x-kOoUtzkScoYVwcY7/exec";
+        const APP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzpeQ0FpgYqomUHtdvWbYSQlnucymQQhUcha00gNI_o8lIYdIg6OaMj2nM0sdOyuKBw/exec";
 
         const useCSVData = (url, mapRowFn) => {
             const [data, setData] = React.useState([]);
@@ -214,11 +214,10 @@
             const [exiting, setExiting] = React.useState(false);
 
             React.useEffect(() => {
-                // מופיע מיד
                 setVisible(true);
-                // נשאר על המסך במשך 10 שניות ורק אז מתחיל להעלם
-                const timer1 = setTimeout(() => setExiting(true), 10000);
-                const timer2 = setTimeout(() => setVisible(false), 10500);
+                // עכשיו הבאנר נשאר 15 שניות לפני שהוא נעלם
+                const timer1 = setTimeout(() => setExiting(true), 15000);
+                const timer2 = setTimeout(() => setVisible(false), 15500);
                 
                 return () => { clearTimeout(timer1); clearTimeout(timer2); };
             }, []);
@@ -226,12 +225,12 @@
             if (!visible) return null;
 
             return (
-                <div className={`fixed bottom-8 left-4 sm:left-8 z-[60] bg-brand-primary text-brand-light p-3 px-4 rounded-xl shadow-2xl flex items-center gap-3 border border-brand-secondary/30 ${exiting ? 'animate-slide-out-left' : 'animate-slide-in-left'}`}>
-                    <a href="https://www.matara.pro/nedarimplus/online/?S=JzNp" target="_blank" className="font-bold text-sm hover:text-brand-secondary transition">
+                <div className={`fixed bottom-4 left-4 sm:bottom-8 sm:left-8 z-[999] bg-brand-primary text-brand-light p-3 px-4 rounded-xl shadow-2xl flex items-center gap-3 border border-brand-secondary/30 ${exiting ? 'animate-slide-out-left' : 'animate-slide-in-left'}`}>
+                    <a href="https://www.matara.pro/nedarimplus/online/?S=JzNp" target="_blank" className="font-bold text-sm hover:text-brand-secondary transition whitespace-nowrap">
                         עדיין לא מנויים? הצטרפו עכשיו!
                     </a>
-                    <div className="w-px h-4 bg-brand-light/30"></div>
-                    <button onClick={() => { setExiting(true); setTimeout(() => setVisible(false), 500); }} className="hover:text-gray-300 opacity-70 hover:opacity-100 transition">
+                    <div className="w-px h-4 bg-brand-light/30 shrink-0"></div>
+                    <button onClick={() => { setExiting(true); setTimeout(() => setVisible(false), 500); }} className="hover:text-gray-300 opacity-70 hover:opacity-100 transition shrink-0 p-1">
                         <Icon name="X" size={14} />
                     </button>
                 </div>
@@ -595,7 +594,6 @@
             const [historyItems, setHistoryItems] = React.useState(localHistory || []);
             const [isSyncing, setIsSyncing] = React.useState(false);
 
-            // סנכרון שקט ברקע מול גוגל שיטס
             React.useEffect(() => {
                 if (!user || !APP_SCRIPT_URL || APP_SCRIPT_URL.includes("הכנס_כאן")) return;
                 
@@ -701,6 +699,7 @@
                 }
                 fetch(APP_SCRIPT_URL, {
                     method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify(dataObj)
                 })
                 .then(res => res.json())
@@ -792,8 +791,12 @@
                 return () => window.removeEventListener('hashchange', handleHashChange);
             }, []);
 
+            // מתקן את בעיית הגלילה כשמעבירים עמוד
             React.useEffect(() => {
-                window.scrollTo(0, 0); // מונע קפיצה בגלילה ראשונית
+                window.scrollTo(0, 0); 
+            }, [currentPage]);
+
+            React.useEffect(() => {
                 const handleScroll = () => setShowBackToTop(window.scrollY > 300);
                 window.addEventListener('scroll', handleScroll);
                 return () => window.removeEventListener('scroll', handleScroll);
@@ -802,7 +805,6 @@
             const navigate = (pageId) => {
                 window.location.hash = pageId;
                 setIsMobileMenuOpen(false);
-                window.scrollTo({top: 0, behavior: 'smooth'});
             };
 
             const toggleA11yMenu = () => setShowA11y(!showA11y);
