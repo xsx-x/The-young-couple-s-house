@@ -6,7 +6,6 @@
     <title>הבית של הזוגות הצעירים - סייר תכנים</title>
     
     <link rel="icon" type="image/jpeg" href="favicon.jpg">
-    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800&display=swap" rel="stylesheet">
@@ -24,9 +23,7 @@
                             dark: '#4a1526'
                         }
                     },
-                    fontFamily: {
-                        sans: ['Heebo', 'sans-serif'],
-                    }
+                    fontFamily: { sans: ['Heebo', 'sans-serif'] }
                 }
             }
         }
@@ -50,6 +47,11 @@
         
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
         .animate-slide-up { animation: slideUp 0.3s ease-out forwards; }
+
+        @keyframes slideInLeft { from { opacity: 0; transform: translateX(-50px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes slideOutLeft { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(-50px); pointer-events: none; } }
+        .animate-slide-in-left { animation: slideInLeft 0.5s ease-out forwards; }
+        .animate-slide-out-left { animation: slideOutLeft 0.5s ease-in forwards; }
 
         .marquee-wrapper {
             display: flex; overflow: hidden; user-select: none; gap: 1.5rem;
@@ -80,7 +82,7 @@
             PlayCircle, ExternalLink, Clock, ShieldCheck, HeartHandshake,
             Maximize, Headphones, ArrowUp, Accessibility, ZoomIn, ZoomOut,
             Underline, Type, RefreshCw, Quote, Volume2, User, LogIn, LogOut,
-            History, Lock
+            History, Lock, Mail, Key
         } = lucide;
 
         const Icon = ({ name, size = 24, className = "" }) => {
@@ -101,7 +103,7 @@
         };
 
         // ----------------------------------------------------
-        // Data Configuration
+        // Configuration
         // ----------------------------------------------------
         const CSV_URLS = {
             DRIVE: "https://docs.google.com/spreadsheets/d/e/2PACX-1vT6OmRPxlNhfecg0vfv-jgnWAgHk9C2NcsLwutzb64KGnisPymHTR02K6LXJBU3fuz15nq9dQTdq3uE/pub?gid=0&single=true&output=csv",
@@ -110,7 +112,7 @@
         };
 
         // ====================================================================
-        // 👈 הדבק כאן את הקישור שקיבלת לאחר פרסום הסקריפט ב-Google Sheets!
+        // 👈 הדבק כאן את הקישור שקיבלת מהסקריפט ב-Google Sheets!
         // ====================================================================
         const APP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyMEAH_MPhoaah0Vtf-oxpZcvPv_xAU2PrIixNZgFLmwTGuiZLXBnuQ80ngrMDq3XHs/exec";
 
@@ -190,12 +192,12 @@
         };
 
         // ----------------------------------------------------
-        // Reusable UI Components
+        // UI Components
         // ----------------------------------------------------
         const Loader = () => (
             <div className="flex flex-col items-center justify-center h-64 w-full">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-brand-primary mb-4"></div>
-                <p className="text-gray-500 font-medium">טוען נתונים מהמערכת...</p>
+                <p className="text-gray-500 font-medium">טוען נתונים...</p>
             </div>
         );
 
@@ -206,6 +208,36 @@
                 <p className="text-sm opacity-80">{msg}</p>
             </div>
         );
+
+        const PromoBanner = () => {
+            const [visible, setVisible] = React.useState(false);
+            const [exiting, setExiting] = React.useState(false);
+
+            React.useEffect(() => {
+                // מופיע מיד
+                setVisible(true);
+                // מתחיל להיעלם אחרי 3 שניות
+                const timer1 = setTimeout(() => setExiting(true), 3000);
+                // נמחק סופית אחרי 3.5 שניות
+                const timer2 = setTimeout(() => setVisible(false), 3500);
+                
+                return () => { clearTimeout(timer1); clearTimeout(timer2); };
+            }, []);
+
+            if (!visible) return null;
+
+            return (
+                <div className={`fixed bottom-8 left-4 sm:left-8 z-[60] bg-brand-primary text-brand-light p-3 px-4 rounded-xl shadow-2xl flex items-center gap-3 border border-brand-secondary/30 ${exiting ? 'animate-slide-out-left' : 'animate-slide-in-left'}`}>
+                    <a href="https://www.matara.pro/nedarimplus/online/?S=JzNp" target="_blank" className="font-bold text-sm hover:text-brand-secondary transition">
+                        עדיין לא מנויים? הצטרפו עכשיו!
+                    </a>
+                    <div className="w-px h-4 bg-brand-light/30"></div>
+                    <button onClick={() => { setExiting(true); setTimeout(() => setVisible(false), 500); }} className="hover:text-gray-300 opacity-70 hover:opacity-100 transition">
+                        <Icon name="X" size={14} />
+                    </button>
+                </div>
+            );
+        };
 
         const TestimonialsMarquee = () => {
             const feedbacks = [
@@ -253,7 +285,8 @@
         // ----------------------------------------------------
 
         const HomePage = ({ setPage }) => (
-            <div className="animate-fade-in space-y-12">
+            <div className="animate-fade-in space-y-12 relative">
+                <PromoBanner />
                 <div className="bg-white rounded-3xl shadow-sm border border-brand-secondary/20 overflow-hidden relative">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-brand-primary/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
                     <div className="absolute bottom-0 left-0 w-48 h-48 bg-brand-secondary/10 rounded-full -ml-24 -mb-24 blur-3xl"></div>
@@ -390,6 +423,14 @@
                     {selectedFile && (
                         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 md:p-8 animate-fade-in">
                             <div className="bg-white w-full max-w-5xl h-full md:h-[90vh] rounded-2xl overflow-hidden flex flex-col shadow-2xl border border-brand-primary/20">
+                                
+                                {/* אזהרת הרשאת גישה בולטת בראש המודאל */}
+                                <div className="bg-amber-100 border-b border-amber-200 p-2.5 text-center text-sm text-amber-900 flex flex-col sm:flex-row items-center justify-center gap-2">
+                                    <div className="flex items-center gap-1.5 font-bold"><Icon name="Info" size={18} className="text-amber-600" /> סרטון לא עולה או מציג בקשת גישה?</div>
+                                    <span>סימן שעדיין אין לכם הרשאה לצפות בתוכן.</span>
+                                    <a href="https://www.matara.pro/nedarimplus/online/?S=JzNp" target="_blank" className="bg-amber-500 text-white px-3 py-1 rounded-md font-bold hover:bg-amber-600 transition shadow-sm text-xs sm:text-sm mt-1 sm:mt-0">לחצו כאן להצטרפות לבית</a>
+                                </div>
+
                                 <div className="bg-brand-primary text-white p-4 flex justify-between items-center shadow-md z-10">
                                     <div className="flex items-center gap-3">
                                         {getFileIcon(selectedFile.type, true)}
@@ -552,24 +593,29 @@
             </div>
         );
 
-        const HistoryPage = ({ user, onFileInteract }) => {
-            const [historyItems, setHistoryItems] = React.useState([]);
-            const [loadingHistory, setLoadingHistory] = React.useState(false);
+        const HistoryPage = ({ user, localHistory, onFileInteract }) => {
+            const [historyItems, setHistoryItems] = React.useState(localHistory || []);
+            const [isSyncing, setIsSyncing] = React.useState(false);
 
+            // סנכרון שקט ברקע מול גוגל שיטס
             React.useEffect(() => {
                 if (!user || !APP_SCRIPT_URL || APP_SCRIPT_URL.includes("הכנס_כאן")) return;
                 
-                setLoadingHistory(true);
+                setIsSyncing(true);
                 fetch(`${APP_SCRIPT_URL}?action=get_history&email=${encodeURIComponent(user.email)}`)
                     .then(res => res.json())
                     .then(data => {
-                        if (data.status === 'success') {
-                            setHistoryItems(data.data);
+                        if (data.status === 'success' && data.data) {
+                            // שילוב של ההיסטוריה המקומית עם זו שבענן (כדי לא לאבד משהו שקרה הרגע)
+                            const combined = [...localHistory, ...data.data];
+                            const unique = Array.from(new Set(combined.map(a => a.name)))
+                                .map(name => combined.find(a => a.name === name));
+                            setHistoryItems(unique);
                         }
                     })
-                    .catch(e => console.log("שגיאה בטעינת היסטוריה:", e))
-                    .finally(() => setLoadingHistory(false));
-            }, [user]);
+                    .catch(e => console.log("שגיאה בסנכרון רקע:", e))
+                    .finally(() => setIsSyncing(false));
+            }, [user]); // Run only on mount or user change
 
             if (!user) {
                 return (
@@ -582,18 +628,16 @@
             }
 
             return (
-                <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
+                <div className="max-w-4xl mx-auto space-y-6 animate-fade-in relative">
                     <div className="text-center mb-10">
-                        <h2 className="text-3xl font-bold text-brand-primary mb-2">היסטוריית הצפייה שלי</h2>
+                        <h2 className="text-3xl font-bold text-brand-primary mb-2 flex justify-center items-center gap-2">
+                            היסטוריית הצפייה שלי
+                            {isSyncing && <Icon name="RefreshCw" size={20} className="animate-spin text-gray-400" />}
+                        </h2>
                         <p className="text-gray-600">כל התכנים שפתחת נשמרים כאן לגישה מהירה.</p>
                     </div>
 
-                    {loadingHistory ? (
-                        <div className="text-center py-16 text-gray-500 bg-white rounded-2xl border border-gray-100 shadow-sm">
-                            <Icon name="RefreshCw" size={48} className="mx-auto mb-3 animate-spin text-brand-secondary" />
-                            שולף נתונים מהמערכת...
-                        </div>
-                    ) : historyItems.length === 0 ? (
+                    {historyItems.length === 0 ? (
                         <div className="text-center py-16 text-gray-500 bg-white rounded-2xl border border-gray-100 shadow-sm">
                             <Icon name="History" size={48} className="mx-auto mb-3 opacity-50" />
                             עדיין לא צפית בשיעורים.
@@ -609,7 +653,7 @@
                                         <div>
                                             <h4 className="font-bold text-gray-800 text-lg leading-tight">{item.name}</h4>
                                             <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                                                <Icon name="Clock" size={12} /> נצפה לאחרונה: {item.lastWatched}
+                                                <Icon name="Clock" size={12} /> נצפה לאחרונה: {item.lastWatched || "היום"}
                                             </p>
                                         </div>
                                     </div>
@@ -628,10 +672,13 @@
         // Main App Component
         // ----------------------------------------------------
         const App = () => {
-            // Local Storage Auth
             const [user, setUser] = React.useState(() => {
                 const savedUser = localStorage.getItem('habait_user');
                 return savedUser ? JSON.parse(savedUser) : null;
+            });
+            const [localHistory, setLocalHistory] = React.useState(() => {
+                const hist = localStorage.getItem('habait_history');
+                return hist ? JSON.parse(hist) : [];
             });
             
             const [currentPage, setCurrentPage] = React.useState('home');
@@ -641,44 +688,85 @@
 
             // Auth Modal State
             const [showAuthModal, setShowAuthModal] = React.useState(false);
+            const [authMode, setAuthMode] = React.useState('login'); // 'login', 'register', 'forgot'
             const [authEmail, setAuthEmail] = React.useState('');
+            const [authPassword, setAuthPassword] = React.useState('');
             const [authName, setAuthName] = React.useState('');
+            const [authError, setAuthError] = React.useState('');
+            const [authLoading, setAuthLoading] = React.useState(false);
+            const [authSuccessMsg, setAuthSuccessMsg] = React.useState('');
 
             // Send data to Google Sheets
-            const pingGoogleSheets = (dataObj) => {
+            const pingGoogleSheets = (dataObj, callback) => {
                 if (!APP_SCRIPT_URL || APP_SCRIPT_URL.includes("הכנס_כאן")) return;
                 fetch(APP_SCRIPT_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify(dataObj)
-                }).catch(e => console.log("שגיאה בשליחת נתונים לגוגל שיטס", e));
+                })
+                .then(res => res.json())
+                .then(data => { if(callback) callback(data); })
+                .catch(e => { console.log("שגיאת רשת", e); if(callback) callback({status: "error", message: "שגיאת תקשורת"}); });
             };
 
-            const handleLoginSubmit = (e) => {
+            const handleAuthSubmit = (e) => {
                 e.preventDefault();
-                const newUser = { name: authName || "משתמש אנונימי", email: authEmail };
-                localStorage.setItem('habait_user', JSON.stringify(newUser));
-                setUser(newUser);
-                setShowAuthModal(false);
-                
-                // רשום את הכניסה בדוח מנהלים בגוגל שיטס
+                setAuthError(''); setAuthSuccessMsg(''); setAuthLoading(true);
+
                 pingGoogleSheets({
-                    action: 'log_visit',
-                    name: newUser.name,
-                    email: newUser.email,
-                    details: 'התחברות והזדהות לאתר'
+                    action: authMode,
+                    name: authName,
+                    email: authEmail,
+                    password: authPassword
+                }, (response) => {
+                    setAuthLoading(false);
+                    if (response.status === 'success') {
+                        if (authMode === 'forgot_password') {
+                            setAuthSuccessMsg("הסיסמה נשלחה לאימייל שלך בהצלחה!");
+                        } else {
+                            const loggedUser = { name: response.name || authName, email: authEmail };
+                            localStorage.setItem('habait_user', JSON.stringify(loggedUser));
+                            setUser(loggedUser);
+                            setShowAuthModal(false);
+                            
+                            pingGoogleSheets({
+                                action: 'log_visit',
+                                name: loggedUser.name,
+                                email: loggedUser.email,
+                                actionType: authMode === 'register' ? 'הרשמה חדשה' : 'התחברות'
+                            });
+                        }
+                    } else {
+                        setAuthError(response.message || "אירעה שגיאה, נסו שנית.");
+                    }
                 });
             };
 
             const handleLogout = () => {
                 localStorage.removeItem('habait_user');
+                localStorage.removeItem('habait_history');
                 setUser(null);
+                setLocalHistory([]);
                 if (currentPage === 'history') navigate('home');
             };
 
             const saveToHistory = (item) => {
                 if (!user) return;
-                // שלח לגוגל שיטס את ההיסטוריה - זה יישמר שם ויסונכרן מול כל מכשיר!
+                
+                // 1. שמירה מקומית מהירה
+                const newItem = {
+                    name: item.name,
+                    type: item.type,
+                    url: item.url || item.link || '',
+                    lecturer: item.lecturer || '',
+                    lastWatched: Utilities_formatDate()
+                };
+                
+                const newHistory = [newItem, ...localHistory.filter(h => h.name !== item.name)].slice(0, 50); // שומר את ה-50 האחרונים למניעת עומס
+                setLocalHistory(newHistory);
+                localStorage.setItem('habait_history', JSON.stringify(newHistory));
+
+                // 2. גיבוי לענן של גוגל שיטס בשקט ברקע
                 pingGoogleSheets({
                     action: 'save_history',
                     email: user.email,
@@ -687,6 +775,12 @@
                     itemLink: item.url || item.link || '',
                     itemLecturer: item.lecturer || ''
                 });
+            };
+
+            // עזר לשמירה מקומית של התאריך הנוכחי (תואם לפורמט של השרת)
+            const Utilities_formatDate = () => {
+                const d = new Date();
+                return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth()+1).toString().padStart(2, '0')}/${d.getFullYear()} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
             };
 
             // URL Routing & Scrolling
@@ -743,7 +837,7 @@
                     case 'schedule': return <SchedulePage />;
                     case 'articles': return <ArticlesPage />;
                     case 'about': return <AboutPage />;
-                    case 'history': return <HistoryPage user={user} onFileInteract={(i) => { saveToHistory(i); navigate('explorer'); }} />;
+                    case 'history': return <HistoryPage user={user} localHistory={localHistory} onFileInteract={(i) => { saveToHistory(i); navigate('explorer'); }} />;
                     default: return <HomePage setPage={navigate} />;
                 }
             };
@@ -792,7 +886,7 @@
                                     {/* User / Auth Area */}
                                     <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100">
                                         {!user ? (
-                                            <button onClick={() => { setShowAuthModal(true); }} className="text-sm font-bold text-brand-primary hover:text-brand-secondary transition flex items-center gap-1">
+                                            <button onClick={() => { setAuthMode('login'); setShowAuthModal(true); setAuthError(''); setAuthSuccessMsg(''); }} className="text-sm font-bold text-brand-primary hover:text-brand-secondary transition flex items-center gap-1">
                                                 <Icon name="User" size={16} /> התחברות
                                             </button>
                                         ) : (
@@ -842,7 +936,7 @@
                         )}
                     </header>
 
-                    {/* Auth Modal (No Password required now, just Name and Email) */}
+                    {/* Auth Modal with Password Support */}
                     {showAuthModal && (
                         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
                             <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center relative shadow-2xl">
@@ -850,24 +944,52 @@
                                     <Icon name="X" size={20} />
                                 </button>
                                 <div className="w-16 h-16 bg-brand-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <Icon name="User" size={32} className="text-brand-primary" />
+                                    <Icon name={authMode === 'forgot_password' ? 'Mail' : 'User'} size={32} className="text-brand-primary" />
                                 </div>
-                                <h3 className="text-2xl font-bold text-gray-800 mb-2">ברוכים הבאים</h3>
-                                <p className="text-gray-500 mb-6 text-sm">הזדהו פעם אחת כדי לשמור היסטוריית צפייה ולסנכרן בין מכשירים.</p>
+                                <h3 className="text-2xl font-bold text-gray-800 mb-2">
+                                    {authMode === 'login' ? 'ברוכים הבאים' : authMode === 'register' ? 'הרשמה לאתר' : 'שחזור סיסמה'}
+                                </h3>
+                                <p className="text-gray-500 mb-6 text-sm">
+                                    {authMode === 'forgot_password' ? 'הזינו אימייל ונשלח לכם את הסיסמה.' : 'הזדהו פעם אחת כדי לשמור היסטוריה.'}
+                                </p>
                                 
-                                <form onSubmit={handleLoginSubmit} className="space-y-4 text-right">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">שם מלא</label>
-                                        <input type="text" required value={authName} onChange={e => setAuthName(e.target.value)} placeholder="לדוגמה: משה כהן" className="w-full border border-gray-300 rounded-xl px-4 py-2 focus:border-brand-primary outline-none transition" />
-                                    </div>
+                                <form onSubmit={handleAuthSubmit} className="space-y-4 text-right">
+                                    {authMode === 'register' && (
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">שם מלא</label>
+                                            <input type="text" required value={authName} onChange={e => setAuthName(e.target.value)} placeholder="לדוגמה: משה כהן" className="w-full border border-gray-300 rounded-xl px-4 py-2 focus:border-brand-primary outline-none transition" />
+                                        </div>
+                                    )}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">כתובת מייל אישית</label>
                                         <input type="email" required value={authEmail} onChange={e => setAuthEmail(e.target.value)} placeholder="name@example.com" className="w-full border border-gray-300 rounded-xl px-4 py-2 focus:border-brand-primary outline-none transition text-left" dir="ltr" />
                                     </div>
-                                    <button type="submit" className="w-full bg-brand-primary hover:bg-brand-dark text-white font-bold py-3 rounded-xl transition shadow mt-2">
-                                        המשך לאתר
+                                    {authMode !== 'forgot_password' && (
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">סיסמה (לפחות 6 תווים)</label>
+                                            <input type="password" required value={authPassword} onChange={e => setAuthPassword(e.target.value)} className="w-full border border-gray-300 rounded-xl px-4 py-2 focus:border-brand-primary outline-none transition text-left" dir="ltr" />
+                                        </div>
+                                    )}
+                                    
+                                    {authError && <div className="text-red-600 bg-red-50 p-2 rounded-lg text-sm text-center font-bold">{authError}</div>}
+                                    {authSuccessMsg && <div className="text-green-600 bg-green-50 p-2 rounded-lg text-sm text-center font-bold">{authSuccessMsg}</div>}
+
+                                    <button type="submit" disabled={authLoading} className="w-full bg-brand-primary hover:bg-brand-dark text-white font-bold py-3 rounded-xl transition shadow mt-2 disabled:opacity-50 flex justify-center items-center gap-2">
+                                        {authLoading ? <Icon name="RefreshCw" className="animate-spin" size={20} /> : null}
+                                        {authMode === 'login' ? 'היכנס למערכת' : authMode === 'register' ? 'צור חשבון' : 'שלח לי סיסמה למייל'}
                                     </button>
                                 </form>
+
+                                <div className="mt-6 pt-4 border-t border-gray-100 flex flex-col gap-2 text-sm">
+                                    {authMode === 'login' ? (
+                                        <>
+                                            <button onClick={() => { setAuthMode('register'); setAuthError(''); setAuthSuccessMsg(''); }} className="text-brand-secondary hover:text-brand-primary font-bold">אין לך חשבון? לחץ כאן להרשמה</button>
+                                            <button onClick={() => { setAuthMode('forgot_password'); setAuthError(''); setAuthSuccessMsg(''); }} className="text-gray-500 hover:text-gray-800">שכחת סיסמה? לשחזור</button>
+                                        </>
+                                    ) : (
+                                        <button onClick={() => { setAuthMode('login'); setAuthError(''); setAuthSuccessMsg(''); }} className="text-brand-secondary hover:text-brand-primary font-bold">חזור למסך ההתחברות</button>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     )}
