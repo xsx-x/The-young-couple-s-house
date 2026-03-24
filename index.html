@@ -114,7 +114,7 @@
         // ====================================================================
         // 👈 הדבק כאן את הקישור שקיבלת מהסקריפט ב-Google Sheets!
         // ====================================================================
-        const APP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyMEAH_MPhoaah0Vtf-oxpZcvPv_xAU2PrIixNZgFLmwTGuiZLXBnuQ80ngrMDq3XHs/exec";
+        const APP_SCRIPT_URL = "הכנס_כאן_את_הקישור_שקיבלת_מגוגל_שיטס";
 
         const useCSVData = (url, mapRowFn) => {
             const [data, setData] = React.useState([]);
@@ -216,10 +216,9 @@
             React.useEffect(() => {
                 // מופיע מיד
                 setVisible(true);
-                // מתחיל להיעלם אחרי 3 שניות
-                const timer1 = setTimeout(() => setExiting(true), 3000);
-                // נמחק סופית אחרי 3.5 שניות
-                const timer2 = setTimeout(() => setVisible(false), 3500);
+                // נשאר על המסך במשך 10 שניות ורק אז מתחיל להעלם
+                const timer1 = setTimeout(() => setExiting(true), 10000);
+                const timer2 = setTimeout(() => setVisible(false), 10500);
                 
                 return () => { clearTimeout(timer1); clearTimeout(timer2); };
             }, []);
@@ -286,7 +285,6 @@
 
         const HomePage = ({ setPage }) => (
             <div className="animate-fade-in space-y-12 relative">
-                <PromoBanner />
                 <div className="bg-white rounded-3xl shadow-sm border border-brand-secondary/20 overflow-hidden relative">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-brand-primary/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
                     <div className="absolute bottom-0 left-0 w-48 h-48 bg-brand-secondary/10 rounded-full -ml-24 -mb-24 blur-3xl"></div>
@@ -606,7 +604,6 @@
                     .then(res => res.json())
                     .then(data => {
                         if (data.status === 'success' && data.data) {
-                            // שילוב של ההיסטוריה המקומית עם זו שבענן (כדי לא לאבד משהו שקרה הרגע)
                             const combined = [...localHistory, ...data.data];
                             const unique = Array.from(new Set(combined.map(a => a.name)))
                                 .map(name => combined.find(a => a.name === name));
@@ -615,7 +612,7 @@
                     })
                     .catch(e => console.log("שגיאה בסנכרון רקע:", e))
                     .finally(() => setIsSyncing(false));
-            }, [user]); // Run only on mount or user change
+            }, [user]); 
 
             if (!user) {
                 return (
@@ -698,15 +695,17 @@
 
             // Send data to Google Sheets
             const pingGoogleSheets = (dataObj, callback) => {
-                if (!APP_SCRIPT_URL || APP_SCRIPT_URL.includes("הכנס_כאן")) return;
+                if (!APP_SCRIPT_URL || APP_SCRIPT_URL.includes("הכנס_כאן")) {
+                    if (callback) callback({status: "error", message: "כתובת השרת לא הוגדרה בקוד."});
+                    return;
+                }
                 fetch(APP_SCRIPT_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify(dataObj)
                 })
                 .then(res => res.json())
                 .then(data => { if(callback) callback(data); })
-                .catch(e => { console.log("שגיאת רשת", e); if(callback) callback({status: "error", message: "שגיאת תקשורת"}); });
+                .catch(e => { console.log("שגיאת תקשורת", e); if(callback) callback({status: "error", message: "שגיאת תקשורת עם השרת."}); });
             };
 
             const handleAuthSubmit = (e) => {
@@ -762,11 +761,11 @@
                     lastWatched: Utilities_formatDate()
                 };
                 
-                const newHistory = [newItem, ...localHistory.filter(h => h.name !== item.name)].slice(0, 50); // שומר את ה-50 האחרונים למניעת עומס
+                const newHistory = [newItem, ...localHistory.filter(h => h.name !== item.name)].slice(0, 50); 
                 setLocalHistory(newHistory);
                 localStorage.setItem('habait_history', JSON.stringify(newHistory));
 
-                // 2. גיבוי לענן של גוגל שיטס בשקט ברקע
+                // 2. גיבוי לענן של גוגל שיטס
                 pingGoogleSheets({
                     action: 'save_history',
                     email: user.email,
@@ -777,13 +776,11 @@
                 });
             };
 
-            // עזר לשמירה מקומית של התאריך הנוכחי (תואם לפורמט של השרת)
             const Utilities_formatDate = () => {
                 const d = new Date();
                 return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth()+1).toString().padStart(2, '0')}/${d.getFullYear()} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
             };
 
-            // URL Routing & Scrolling
             React.useEffect(() => {
                 const handleHashChange = () => {
                     const hash = window.location.hash.replace('#', '') || 'home';
@@ -796,6 +793,7 @@
             }, []);
 
             React.useEffect(() => {
+                window.scrollTo(0, 0); // מונע קפיצה בגלילה ראשונית
                 const handleScroll = () => setShowBackToTop(window.scrollY > 300);
                 window.addEventListener('scroll', handleScroll);
                 return () => window.removeEventListener('scroll', handleScroll);
@@ -807,7 +805,6 @@
                 window.scrollTo({top: 0, behavior: 'smooth'});
             };
 
-            // A11y Methods
             const toggleA11yMenu = () => setShowA11y(!showA11y);
             const changeFontSize = (step) => {
                 const currentSize = parseFloat(getComputedStyle(document.body).fontSize);
@@ -844,6 +841,7 @@
 
             return (
                 <div className="min-h-screen flex flex-col font-sans relative pb-20 sm:pb-0">
+                    <PromoBanner />
                     
                     {/* Header */}
                     <header className="bg-white shadow-sm sticky top-0 z-50">
@@ -982,10 +980,10 @@
 
                                 <div className="mt-6 pt-4 border-t border-gray-100 flex flex-col gap-2 text-sm">
                                     {authMode === 'login' ? (
-                                        <>
+                                        <React.Fragment>
                                             <button onClick={() => { setAuthMode('register'); setAuthError(''); setAuthSuccessMsg(''); }} className="text-brand-secondary hover:text-brand-primary font-bold">אין לך חשבון? לחץ כאן להרשמה</button>
                                             <button onClick={() => { setAuthMode('forgot_password'); setAuthError(''); setAuthSuccessMsg(''); }} className="text-gray-500 hover:text-gray-800">שכחת סיסמה? לשחזור</button>
-                                        </>
+                                        </React.Fragment>
                                     ) : (
                                         <button onClick={() => { setAuthMode('login'); setAuthError(''); setAuthSuccessMsg(''); }} className="text-brand-secondary hover:text-brand-primary font-bold">חזור למסך ההתחברות</button>
                                     )}
